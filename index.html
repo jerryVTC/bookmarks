@@ -116,10 +116,11 @@
   form.add .f-cat { grid-column: 1 / -1; }
   form.add .f-title { grid-column: span 2; }
   form.add .f-note { grid-column: span 4; }
+  form.add .f-vis { grid-column: span 3; }
   form.add .f-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: flex-end; }
   form.add .mode { margin-right: auto; font-family: var(--font-mono); font-size: 0.8125rem; color: var(--accent); }
   @media (max-width: 620px) {
-    form.add .f-url, form.add .f-cat, form.add .f-title, form.add .f-note { grid-column: 1 / -1; }
+    form.add .f-url, form.add .f-cat, form.add .f-title, form.add .f-note, form.add .f-vis { grid-column: 1 / -1; }
   }
   .readonly-note { margin: 0; padding: 10px 14px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 0.9rem; }
 
@@ -283,6 +284,13 @@
         <div class="field f-note">
           <label for="fNote">備註（選填）</label>
           <input type="text" id="fNote" maxlength="200" placeholder="為什麼要收藏它？">
+        </div>
+        <div class="field f-vis">
+          <label for="fVis">最外層搜尋</label>
+          <select id="fVis">
+            <option value="show">顯示：外層搜尋找得到</option>
+            <option value="hide">隱藏：外層搜尋找不到</option>
+          </select>
         </div>
         <div class="field f-img" id="fImageField" hidden>
           <span class="lbl">圖片（選填）</span>
@@ -686,6 +694,7 @@ const firebaseConfig = {
     } else { info.appendChild(el('span', 'title', title)); }
     info.appendChild(el('p', 'url', hostName + (l.category ? '' : '')));
     if (l.note) info.appendChild(el('p', 'note', l.note));
+    if (l.hideFromHome) info.appendChild(el('p', 'note', '🔒 隱藏：不會出現在最外層搜尋'));
     var cs = linkCats(l);
     if (cs.length) {
       var chips = el('div', 'chips');
@@ -739,7 +748,7 @@ const firebaseConfig = {
   }
   function startEdit(l) {
     state.editing = l;
-    $('fUrl').value = l.url || ''; $('fTitle').value = l.title || ''; $('fNote').value = l.note || '';
+    $('fUrl').value = l.url || ''; $('fTitle').value = l.title || ''; $('fNote').value = l.note || ''; $('fVis').value = l.hideFromHome ? 'hide' : 'show';
     state.picked = linkCats(l).slice();
     state.pickQ = ''; $('pickQ').value = '';
     renderPicks();
@@ -786,6 +795,7 @@ const firebaseConfig = {
       note: $('fNote').value.trim(),
       updatedAt: Date.now()
     };
+    if ($('fVis').value === 'hide') data.hideFromHome = true;
     var editing = state.editing;
     if (!editing && state.links.some(function (l) { return l.url === url; })) { toast('這個網址已經收藏過了'); return; }
     state.saving = true; $('saveBtn').disabled = true;
@@ -933,7 +943,7 @@ const firebaseConfig = {
       var all = state.spaceLinks[s.id];
       if (!all) return;
       loaded++;
-      var hits = all.filter(function (l) { return linkMatches(l, q); })
+      var hits = all.filter(function (l) { return !l.hideFromHome && linkMatches(l, q); })
         .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
       if (!hits.length) return;
       total += hits.length;
