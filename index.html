@@ -1,0 +1,1261 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>網址收藏庫</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@300;400;500;700&display=swap">
+<style>
+  :root { color-scheme: light; }
+  [hidden] { display: none !important; }
+  body { margin: 0; }
+  /* Layout: category rail on the left (chips on phones), one working column on the right: add form, search, then link rows grouped by category. */
+  :root {
+    --bg: #F5F6F6;
+    --surface: #FFFFFF;
+    --fg: #161A1A;
+    --muted: #5E6868;
+    --line: #DFE3E3;
+    --accent: #0B7A6B;
+    --accent-ink: #FFFFFF;
+    --danger: #B42318;
+    --tile-bg-l: 90%;
+    --tile-fg-l: 26%;
+    --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1212; --surface: #151A1A; --fg: #E6EBEA; --muted: #93A09E; --line: #252C2C;
+      --accent: #4FD1B5; --accent-ink: #0A1413; --danger: #FF8A7A;
+      --tile-bg-l: 22%; --tile-fg-l: 80%;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E1212; --surface: #151A1A; --fg: #E6EBEA; --muted: #93A09E; --line: #252C2C;
+    --accent: #4FD1B5; --accent-ink: #0A1413; --danger: #FF8A7A;
+    --tile-bg-l: 22%; --tile-fg-l: 80%;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.7; -webkit-font-smoothing: antialiased; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .wrap {
+    max-width: 1040px; margin: 0 auto;
+    padding-block: 32px 72px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 32px; }
+  h1 { margin: 0; font-size: 1.75rem; font-weight: 700; letter-spacing: 0.02em; line-height: 1.3; }
+  .sub { margin: 4px 0 0; color: var(--muted); font-size: 0.9rem; font-family: var(--font-mono); letter-spacing: 0.03em; }
+  .ghost { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; font-size: 0.8125rem; font-family: var(--font-mono); color: var(--muted); cursor: pointer; }
+  .ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  @media (min-width: 860px) { .layout { grid-template-columns: 210px minmax(0, 1fr); gap: 56px; } }
+
+  /* category rail */
+  .rail { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  @media (min-width: 860px) { .rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; } }
+  .rail-title { margin: 0; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.14em; color: var(--muted); }
+  .cats { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  @media (min-width: 860px) { .cats { flex-direction: column; flex-wrap: nowrap; gap: 2px; } }
+  .cat { display: flex; align-items: center; gap: 4px; }
+  .cat-btn {
+    flex: 1; min-width: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; cursor: pointer; text-align: left;
+  }
+  @media (min-width: 860px) { .cat-btn { border-color: transparent; border-radius: 6px; padding: 5px 10px; } }
+  .cat-btn:hover { border-color: var(--accent); }
+  .cat-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .cat-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cat-count { font-family: var(--font-mono); font-size: 0.75rem; opacity: 0.75; font-variant-numeric: tabular-nums; }
+  .cat-del { background: transparent; border: 0; color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 0.9rem; line-height: 1; }
+  .cat-del:hover { color: var(--danger); }
+  .cat-del[disabled] { opacity: 0.3; cursor: not-allowed; }
+  .cat-add { display: flex; gap: 6px; }
+  .cat-add input { flex: 1; min-width: 0; }
+
+  /* inputs */
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .field label, .field .lbl { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; color: var(--muted); }
+  input[type="text"], input[type="url"], input[type="search"], select {
+    width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; min-height: 40px;
+  }
+  input::placeholder { color: var(--muted); opacity: 0.8; }
+  input:focus, select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .btn { background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent); border-radius: 6px; padding: 8px 18px; min-height: 40px; font-weight: 500; cursor: pointer; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn[disabled] { opacity: 0.55; cursor: progress; }
+  .btn.alt { background: transparent; color: var(--fg); border-color: var(--line); }
+  .btn.alt:hover { border-color: var(--accent); color: var(--accent); filter: none; }
+  .btn.small { min-height: 40px; padding: 8px 12px; }
+
+  /* multi-category picker in the form, and category chips on each row */
+  .pick-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+  .pick-head #pickCount { color: var(--accent); }
+  .pick-q { max-width: 280px; }
+  .picks { display: flex; flex-wrap: wrap; gap: 6px; max-height: 176px; overflow-y: auto; padding: 2px; }
+  .pick { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; min-height: 36px; cursor: pointer; }
+  .pick:hover { border-color: var(--accent); }
+  .pick[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .picks-empty { color: var(--muted); font-size: 0.9rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chip { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.03em; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); border: 0; border-radius: 4px; padding: 1px 10px; cursor: pointer; }
+  .chip:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+
+  /* add form */
+  .main { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+  form.add { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  form.add .f-url { grid-column: 1 / -1; }
+  form.add .f-cat { grid-column: 1 / -1; }
+  form.add .f-title { grid-column: span 2; }
+  form.add .f-note { grid-column: span 4; }
+  form.add .f-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: flex-end; }
+  form.add .mode { margin-right: auto; font-family: var(--font-mono); font-size: 0.8125rem; color: var(--accent); }
+  @media (max-width: 620px) {
+    form.add .f-url, form.add .f-cat, form.add .f-title, form.add .f-note { grid-column: 1 / -1; }
+  }
+  .readonly-note { margin: 0; padding: 10px 14px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 0.9rem; }
+
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+  .toolbar input { flex: 1 1 220px; }
+
+  /* list */
+  .group { display: flex; flex-direction: column; }
+  .group + .group { margin-top: 28px; }
+  .group h2 { margin: 0 0 8px; display: flex; align-items: center; gap: 14px; font-family: var(--font-mono); font-weight: 500; font-size: 0.8125rem; letter-spacing: 0.12em; color: var(--muted); }
+  .group h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .item { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 4px 14px; align-items: start; padding-block: 14px; border-top: 1px solid var(--line); }
+  .group .item:first-of-type { border-top: 0; }
+  .tile {
+    width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center; font-weight: 700; font-size: 1rem; margin-top: 2px;
+    background: hsl(var(--h) 38% var(--tile-bg-l)); color: hsl(var(--h) 55% var(--tile-fg-l));
+  }
+  .info { min-width: 0; }
+  .info a.title { font-weight: 500; text-decoration: none; overflow-wrap: anywhere; }
+  .info a.title:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+  .url { margin: 0; font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); overflow-wrap: anywhere; }
+  .note { margin: 4px 0 0; font-size: 0.9rem; color: var(--muted); overflow-wrap: anywhere; }
+  .date { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .acts { display: flex; gap: 4px; }
+  .act { background: transparent; border: 0; padding: 8px 10px; min-height: 40px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); cursor: pointer; }
+  .act:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .act.del:hover, .act.del.armed { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+  @media (max-width: 620px) {
+    .item { grid-template-columns: 36px minmax(0, 1fr); }
+    .acts { grid-column: 2; margin-left: -10px; }
+  }
+
+  .empty { border: 1px dashed var(--line); border-radius: 10px; padding: 36px 20px; text-align: center; color: var(--muted); }
+  .empty strong { display: block; color: var(--fg); font-weight: 500; font-size: 1.0625rem; margin-bottom: 4px; }
+
+  /* spaces: the top level above the link page */
+  .crumb { background: transparent; border: 0; padding: 4px 0; min-height: 32px; font-family: var(--font-mono); font-size: 0.8125rem; letter-spacing: 0.04em; color: var(--muted); cursor: pointer; }
+  .crumb:hover { color: var(--accent); }
+  header > div { min-width: 0; }
+  h1 { overflow-wrap: anywhere; }
+  .space-add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 28px; max-width: 520px; }
+  .space-add .field { flex: 1 1 220px; }
+  .spaces { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  .space { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; min-width: 0; }
+  .space:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+  .space-open { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; background: transparent; border: 0; padding: 18px 18px 12px; cursor: pointer; border-radius: 10px 10px 0 0; min-width: 0; width: 100%; }
+  .space-open .tile { margin-bottom: 8px; }
+  .space-name { font-size: 1.1875rem; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+  .space-meta { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .space-acts { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 10px 10px; }
+  .space-rename { display: flex; flex-direction: column; gap: 8px; padding: 18px; }
+  .space-rename .row-btns { display: flex; gap: 8px; }
+  .home-search { margin-bottom: 20px; max-width: 520px; }
+  .res-meta { margin: 16px 0 0; color: var(--muted); font-size: 0.875rem; }
+  #results .group .spaces { margin-top: 4px; }
+  .chip.static { cursor: default; }
+
+  /* one small image per link and per space, in the same box the letter tile uses */
+  .tile.has-img { background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  form.add .f-img { grid-column: 1 / -1; }
+  #sImageField { flex: 0 0 auto; }
+  .imgpick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .imgpick-prev { width: 48px; height: 48px; border-radius: 8px; border: 1px dashed var(--line); display: grid; place-items: center; overflow: hidden; color: var(--muted); background: var(--surface); flex: none; font-size: 0.75rem; }
+  .imgpick-prev img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .imgpick-note { font-size: 0.8125rem; color: var(--muted); font-family: var(--font-mono); overflow-wrap: anywhere; min-width: 0; }
+  .usage { margin: 40px 0 0; font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); letter-spacing: 0.03em; }
+
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+    max-width: calc(100vw - 32px); background: var(--fg); color: var(--bg);
+    padding: 8px 16px; border-radius: 8px; font-size: 0.9rem; z-index: 10;
+  }
+  .toast[hidden] { display: none; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    button, a, input, select { transition: color .15s, background-color .15s, border-color .15s, box-shadow .15s; }
+  }
+
+  /* standalone-only: sign-in gate and account area */
+  .hdr-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .who { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); overflow-wrap: anywhere; }
+  .gate { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 28px 22px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; max-width: 560px; }
+  .gate-title { margin: 0; font-size: 1.25rem; font-weight: 500; line-height: 1.4; }
+  .gate-text { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+  body.gated #homeView, body.gated #spaceView, body.gated #backBtn { display: none !important; }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <button class="crumb" id="backBtn" type="button" hidden>← 所有分區</button>
+      <h1 id="pageTitle">網址收藏庫</h1>
+      <p class="sub" id="summary">載入中…</p>
+    </div>
+    <div class="hdr-actions">
+      <span class="who" id="who" hidden></span>
+      <button class="ghost" id="signOutBtn" type="button" hidden>登出</button>
+      <button class="ghost" id="themeBtn" type="button" aria-label="切換深色或淺色模式">切換主題</button>
+    </div>
+  </header>
+
+  <section class="gate" id="gate" hidden>
+    <h2 class="gate-title" id="gateTitle"></h2>
+    <p class="gate-text" id="gateText"></p>
+    <button class="btn" id="signInBtn" type="button" hidden>用 Google 帳號登入</button>
+  </section>
+
+  <section id="homeView">
+    <div class="home-search" id="homeSearch" hidden>
+      <input type="search" id="homeQ" placeholder="搜尋所有分區的連結、分類或分區名稱" aria-label="搜尋全部分區" autocomplete="off">
+    </div>
+    <form class="space-add" id="spaceForm" autocomplete="off" hidden>
+      <div class="field">
+        <label for="spaceInput">新增分區</label>
+        <input type="text" id="spaceInput" maxlength="20" placeholder="例如：工作、學習、生活">
+      </div>
+      <div class="field" id="sImageField" hidden>
+        <span class="lbl">圖片（選填）</span>
+        <div id="sImageMount"></div>
+      </div>
+      <button class="btn" type="submit">建立分區</button>
+    </form>
+    <div class="spaces" id="spaces" aria-live="polite"></div>
+    <div id="results" aria-live="polite" hidden></div>
+  </section>
+
+  <div id="spaceView" hidden>
+  <div class="layout">
+    <aside class="rail" aria-label="分類">
+      <h2 class="rail-title">分類</h2>
+      <ul class="cats" id="cats"></ul>
+      <form class="cat-add" id="catForm" hidden>
+        <label for="catInput" style="position:absolute;left:-9999px">新增分類</label>
+        <input type="text" id="catInput" placeholder="新增分類" maxlength="20" autocomplete="off">
+        <button class="btn alt small" type="submit">加入</button>
+      </form>
+    </aside>
+
+    <div class="main">
+      <form class="add" id="linkForm" autocomplete="off" hidden>
+        <div class="field f-url">
+          <label for="fUrl">網址</label>
+          <input type="text" id="fUrl" inputmode="url" placeholder="貼上網址，例如 example.com/article" required>
+        </div>
+        <div class="field f-cat">
+          <div class="pick-head">
+            <span class="lbl" id="fCatLabel">分類（可複選）</span>
+            <span class="lbl" id="pickCount"></span>
+          </div>
+          <input type="search" class="pick-q" id="pickQ" placeholder="輸入文字篩選分類，Enter 選取第一個" aria-label="篩選分類" autocomplete="off">
+          <div class="picks" id="fCat" role="group" aria-labelledby="fCatLabel"></div>
+        </div>
+        <div class="field f-title">
+          <label for="fTitle">標題（選填）</label>
+          <input type="text" id="fTitle" maxlength="120" placeholder="沒填就用網站名稱">
+        </div>
+        <div class="field f-note">
+          <label for="fNote">備註（選填）</label>
+          <input type="text" id="fNote" maxlength="200" placeholder="為什麼要收藏它？">
+        </div>
+        <div class="field f-img" id="fImageField" hidden>
+          <span class="lbl">圖片（選填）</span>
+          <div id="fImageMount"></div>
+        </div>
+        <div class="f-actions">
+          <span class="mode" id="modeLabel" hidden>編輯中</span>
+          <button class="btn alt" type="button" id="cancelBtn" hidden>取消</button>
+          <button class="btn" type="submit" id="saveBtn">新增收藏</button>
+        </div>
+      </form>
+      <p class="readonly-note" id="roNote" hidden>你目前只能瀏覽這些收藏，無法新增或修改。</p>
+
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="搜尋標題、網址或備註" aria-label="搜尋收藏">
+      </div>
+
+      <div id="list" aria-live="polite"></div>
+    </div>
+  </div>
+  </div>
+  <p class="usage" id="usage" hidden></p>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+/* If the Firebase libraries cannot load (blocked network, preview window, offline), the module below never runs.
+   Say so instead of leaving the page on a blank "loading" state. */
+setTimeout(function () {
+  if (window.__appStarted) return;
+  var g = document.getElementById('gate'); if (!g) return;
+  document.getElementById('gateTitle').textContent = '無法載入登入與資料庫程式庫';
+  document.getElementById('gateText').textContent = '這個頁面需要連線到 gstatic.com 才能載入 Firebase。請確認網路正常，並在一般瀏覽器或已部署的 GitHub Pages 網址開啟；檔案預覽視窗無法執行這個頁面。';
+  g.hidden = false; document.body.classList.add('gated');
+  document.getElementById('summary').textContent = '無法載入';
+}, 4000);
+</script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  getFirestore, doc as fsDoc, collection as fsCollection, query as fsQuery, orderBy as fsOrderBy, limit as fsLimit,
+  onSnapshot as fsOnSnapshot, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+/* 把下面的設定換成你自己的 Firebase 專案設定（Firebase 控制台 > 專案設定 > 你的應用程式）。
+   這組設定本來就會出現在網頁原始碼裡，不是密碼；真正的保護來自 Firestore 規則。 */
+const firebaseConfig = {
+  apiKey: "AIzaSyBHXoMH4fj6Y1UZuH3X5muCiHolzvyKAqA",
+  authDomain: "bookmarks-dcb41.firebaseapp.com",
+  projectId: "bookmarks-dcb41",
+  appId: "1:29016042682:web:0b1f22bb708f59f969e683"
+};
+
+(function () {
+  var root = document.documentElement;
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* theme (per-viewer convenience) */
+  try { var th = localStorage.getItem('bookmarks-theme'); if (th === 'light' || th === 'dark') root.setAttribute('data-theme', th); } catch (e) {}
+  $('themeBtn').addEventListener('click', function () {
+    var cur = root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var next = cur === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('bookmarks-theme', next); } catch (e) {}
+  });
+
+  var state = {
+    view: 'home', spaceId: null, spaces: [], spacesLoaded: false, spaceCounts: {}, spaceLinks: {}, homeQ: '',
+    renamingSpace: null, renameDraft: null, editPicker: null, savingSpace: false, creatingSpace: false, armedSpace: null, deletingSpace: null,
+    links: [], cats: [], picked: [], pickQ: '', filter: '__all', q: '', editing: null, canWrite: false, loaded: false, dbOk: true, armed: null, saving: false
+  };
+  var db = null;
+  var assetsApi = null, linkPicker = null, spacePicker = null;
+  var toastTimer = null;
+  var catChain = Promise.resolve();
+
+  function toast(msg) {
+    var t = $('toast'); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 2600);
+  }
+
+  /* ---------- helpers ---------- */
+  function normUrl(raw) {
+    var s = (raw || '').trim();
+    if (!s) return null;
+    if (!/^[a-z][a-z0-9+.\-]*:/i.test(s)) s = 'https://' + s;
+    try {
+      var u = new URL(s);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+      if (u.hostname.indexOf('.') === -1 && u.hostname !== 'localhost') return null;
+      return u.href;
+    } catch (e) { return null; }
+  }
+  function safeHref(u) { return normUrl(u); }
+  function host(u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; } }
+  function hue(str) { var h = 0; for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h % 360; }
+  function fmtDate(ts) {
+    if (!ts) return '';
+    var d = new Date(ts); if (isNaN(d)) return '';
+    var m = d.getMonth() + 1, day = d.getDate();
+    return d.getFullYear() + '/' + (m < 10 ? '0' : '') + m + '/' + (day < 10 ? '0' : '') + day;
+  }
+  /* a link keeps its categories in `categories`; older rows used a single `category` string */
+  function linkCats(l) {
+    if (Array.isArray(l.categories)) return l.categories.filter(function (x) { return typeof x === 'string' && x; });
+    return l.category ? [l.category] : [];
+  }
+  function allCats() {
+    var out = state.cats.slice();
+    state.links.forEach(function (l) {
+      linkCats(l).forEach(function (c) { if (out.indexOf(c) === -1) out.push(c); });
+    });
+    return out;
+  }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  /* ---------- images ---------- */
+  function validImg(id) { return typeof id === 'string' && /^[A-Za-z0-9_-]{16,64}$/.test(id); }
+  /* the small box on every link and space: the image when there is one, otherwise the first letter */
+  /* Images live in their own Firestore documents (users/<uid>/images/<id>, one small data URL each),
+     so link and space documents stay tiny. Tiles fetch the image on demand and keep it in memory. */
+  var imageCache = new Map(), imagePending = {};
+  function imgSyncSrc(id, cb) {
+    if (!validImg(id)) return null;
+    if (imageCache.has(id)) return imageCache.get(id);
+    if (!db) return null;
+    if (!imagePending[id]) {
+      imagePending[id] = db.doc('images/' + id).get().then(function (snap) {
+        var d = snap.exists ? snap.data() : null;
+        imageCache.set(id, d && typeof d.data === 'string' && /^data:image\/(png|jpeg|webp|gif);base64,/.test(d.data) ? d.data : null);
+      }, function () { /* leave it uncached so a later render can try again */ }).then(function () { delete imagePending[id]; });
+    }
+    if (cb) imagePending[id].then(function () { cb(imageCache.has(id) ? imageCache.get(id) : null); });
+    return null;
+  }
+  function blobToDataUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result)); };
+      r.onerror = function () { reject(new Error('read failed')); };
+      r.readAsDataURL(blob);
+    });
+  }
+  /* the small box on every link and space: the image when there is one, otherwise the first letter */
+  function tileEl(imageId, label, seed) {
+    var letter = ((label || '').charAt(0) || '?').toUpperCase();
+    var t = el('div', 'tile', letter);
+    t.style.setProperty('--h', String(hue(seed || label || ''))); t.setAttribute('aria-hidden', 'true');
+    if (validImg(imageId)) {
+      var show = function (u) {
+        if (!u) return;
+        var im = el('img'); im.alt = ''; im.decoding = 'async';
+        im.addEventListener('error', function () { t.classList.remove('has-img'); t.textContent = letter; });
+        im.src = u;
+        t.textContent = ''; t.classList.add('has-img'); t.appendChild(im);
+      };
+      var now = imgSyncSrc(imageId, show);
+      if (now) show(now);
+    }
+    return t;
+  }
+  /* shrink before upload: the box is tiny, so a 320px side is plenty and keeps the file small */
+  function shrinkImage(file) {
+    return new Promise(function (resolve, reject) {
+      if (!/^image\//.test(file.type || '')) { reject(new Error('not an image')); return; }
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var w = img.naturalWidth, h = img.naturalHeight;
+        if (!w || !h) { reject(new Error('no size')); return; }
+        var k = Math.min(1, 192 / Math.max(w, h));
+        var cw = Math.max(1, Math.round(w * k)), ch = Math.max(1, Math.round(h * k));
+        var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+        var cx = cv.getContext('2d');
+        var keepAlpha = /png|gif|webp|svg/.test(file.type);
+        if (!keepAlpha) { cx.fillStyle = '#fff'; cx.fillRect(0, 0, cw, ch); }
+        cx.drawImage(img, 0, 0, cw, ch);
+        cv.toBlob(function (b) { if (b) resolve(b); else reject(new Error('encode failed')); }, keepAlpha ? 'image/png' : 'image/jpeg', 0.85);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('decode failed')); };
+      img.src = url;
+    });
+  }
+  /* a chooser used in three places: new link form, new space form, and a space's edit card.
+     It only holds the picked file; the upload happens when the form is saved. */
+  function makeImagePicker(initialId) {
+    var st = { current: validImg(initialId) ? initialId : null, file: null, url: null, removed: false, name: '' };
+    var root = el('div', 'imgpick');
+    var prev = el('div', 'imgpick-prev');
+    var pick = el('button', 'btn alt small', '選擇圖片'); pick.type = 'button';
+    var rm = el('button', 'btn alt small', '移除'); rm.type = 'button';
+    var note = el('span', 'imgpick-note');
+    var input = el('input'); input.type = 'file'; input.accept = 'image/*'; input.hidden = true; input.setAttribute('aria-label', '選擇圖片檔案');
+    root.appendChild(prev); root.appendChild(pick); root.appendChild(rm); root.appendChild(note); root.appendChild(input);
+    function src() { return st.url || (st.current && !st.removed ? imgSyncSrc(st.current, function () { paint(); }) : null); }
+    function paint() {
+      prev.textContent = '';
+      var u = src();
+      if (u) { var im = el('img'); im.alt = ''; im.src = u; prev.appendChild(im); } else prev.textContent = '無';
+      pick.textContent = u ? '更換圖片' : '選擇圖片';
+      rm.hidden = !u;
+      note.textContent = st.file ? '已選擇：' + st.name + '（儲存時上傳）' : '';
+    }
+    pick.addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () {
+      var f = input.files && input.files[0]; input.value = '';
+      if (!f) return;
+      if (f.size > 30 * 1048576) { toast('圖片檔案太大，請選 30 MB 以下的圖片'); return; }
+      shrinkImage(f).then(function (blob) {
+        if (st.url) URL.revokeObjectURL(st.url);
+        st.file = blob; st.url = URL.createObjectURL(blob); st.removed = false; st.name = f.name; paint();
+      }, function () { toast('這個檔案無法當作圖片使用'); });
+    });
+    rm.addEventListener('click', function () {
+      if (st.url) URL.revokeObjectURL(st.url);
+      st.file = null; st.url = null; st.name = ''; st.removed = !!st.current; paint();
+    });
+    paint();
+    return {
+      el: root, state: st,
+      reset: function (id) { if (st.url) URL.revokeObjectURL(st.url); st.current = validImg(id) ? id : null; st.file = null; st.url = null; st.removed = false; st.name = ''; paint(); },
+      dispose: function () { if (st.url) URL.revokeObjectURL(st.url); st.url = null; }
+    };
+  }
+  function uploadErrMsg(e) {
+    var c = e && e.code;
+    if (c === 'too_large') return '圖片太大，無法上傳';
+    if (c === 'quota_or_state') return '圖片儲存空間已滿或暫時無法使用';
+    if (c === 'unsupported_type') return '不支援這種圖片格式';
+    if (c === 'rate_limited') return '操作太頻繁，請稍後再試';
+    if (c === 'not_granted' || c === 'capability_disabled' || c === 'capability_removed') return '這個頁面目前不能上傳圖片';
+    return '圖片上傳失敗，請稍後再試';
+  }
+  /* upload the picked file (if any) and say which asset the record should point at now,
+     which new asset to clean up if the save fails, and which old asset to remove once it succeeds */
+  async function resolveImage(picker, oldId) {
+    if (!picker || !assetsApi) return { imageId: oldId || null, uploadedId: null, oldToDelete: null };
+    var st = picker.state;
+    if (st.file) {
+      var r = await assetsApi.upload(st.file, { type: st.file.type });
+      return { imageId: r.id, uploadedId: r.id, oldToDelete: oldId || null };
+    }
+    if (st.removed) return { imageId: null, uploadedId: null, oldToDelete: oldId || null };
+    return { imageId: oldId || null, uploadedId: null, oldToDelete: null };
+  }
+  function dropAsset(id) {
+    if (!id || !assetsApi) return Promise.resolve();
+    return assetsApi.delete(id).then(function () {}, function () {});
+  }
+  var usageBusy = false;
+  function refreshUsage() {
+    if (!assetsApi || usageBusy) return;
+    usageBusy = true;
+    assetsApi.list().then(function (r) {
+      var u = r && r.usage; if (!u) return;
+      var mb = function (b) { return (b / 1048576).toFixed(b >= 10485760 ? 0 : 1); };
+      var line = $('usage');
+      line.textContent = '圖片空間：已用 ' + mb(u.bytes) + ' MB / ' + mb(u.maxBytes) + ' MB・' + u.files + ' / ' + u.maxFiles + ' 張';
+      line.hidden = false;
+    }, function () {}).then(function () { usageBusy = false; });
+  }
+
+  /* ---------- render ---------- */
+  function spaceById(id) {
+    for (var i = 0; i < state.spaces.length; i++) if (state.spaces[i].id === id) return state.spaces[i];
+    return null;
+  }
+  function sp() { return 'spaces/' + state.spaceId; }
+  function render() {
+    var home = state.view === 'home';
+    $('homeView').hidden = !home; $('spaceView').hidden = home; $('backBtn').hidden = home;
+    var s = home ? null : spaceById(state.spaceId);
+    $('pageTitle').textContent = home ? '網址收藏庫' : (s ? s.name : '分區');
+    renderSummary();
+    if (home) { renderHome(); return; }
+    renderCats(); renderPicks(); renderList(); renderControls();
+  }
+  function renderSummary() {
+    var t;
+    if (!state.dbOk) t = '目前無法連線到儲存空間';
+    else if (state.view === 'home') t = !state.spacesLoaded ? '載入中…' : '共 ' + state.spaces.length + ' 個分區';
+    else t = !state.loaded ? '載入中…' : '共 ' + state.links.length + ' 個連結・' + allCats().length + ' 個分類';
+    $('summary').textContent = t;
+  }
+  function renderControls() {
+    $('linkForm').hidden = !(state.canWrite && state.dbOk);
+    $('catForm').hidden = !(state.canWrite && state.dbOk);
+    $('roNote').hidden = state.canWrite || !state.dbOk;
+  }
+  function countFor(cat) {
+    return state.links.filter(function (l) {
+      var cs = linkCats(l);
+      return cat === '' ? cs.length === 0 : cs.indexOf(cat) !== -1;
+    }).length;
+  }
+  function renderCats() {
+    var ul = $('cats'); ul.textContent = '';
+    function addItem(key, label, count, deletable) {
+      var li = el('li', 'cat');
+      var b = el('button', 'cat-btn'); b.type = 'button';
+      b.setAttribute('aria-pressed', state.filter === key ? 'true' : 'false');
+      b.appendChild(el('span', 'cat-name', label));
+      b.appendChild(el('span', 'cat-count', String(count)));
+      b.addEventListener('click', function () { state.filter = key; render(); });
+      li.appendChild(b);
+      if (deletable && state.canWrite) {
+        var d = el('button', 'cat-del', '×'); d.type = 'button';
+        d.setAttribute('aria-label', '刪除分類 ' + label);
+        if (count > 0) { d.disabled = true; d.title = '分類裡還有連結，無法刪除'; }
+        d.addEventListener('click', function () { removeCategory(key); });
+        li.appendChild(d);
+      }
+      ul.appendChild(li);
+    }
+    addItem('__all', '全部', state.links.length, false);
+    allCats().forEach(function (c) { addItem(c, c, countFor(c), state.cats.indexOf(c) !== -1); });
+    var un = countFor('');
+    if (un > 0) addItem('__none', '未分類', un, false);
+    if (state.filter !== '__all' && state.filter !== '__none' && allCats().indexOf(state.filter) === -1) state.filter = '__all';
+  }
+  function renderPicks() {
+    var box = $('fCat'); box.textContent = '';
+    var cats = allCats();
+    state.picked = state.picked.filter(function (c) { return cats.indexOf(c) !== -1; });
+    $('pickCount').textContent = state.picked.length ? '已選 ' + state.picked.length + ' 個' : '';
+    if (cats.length === 0) { box.appendChild(el('span', 'picks-empty', '還沒有分類，先在左側新增。沒選分類會放在「未分類」。')); return; }
+    /* chosen categories stay visible while filtering, so the selection is never hidden */
+    var q = state.pickQ.trim().toLowerCase();
+    var shown = cats.filter(function (c) { return state.picked.indexOf(c) !== -1 || !q || c.toLowerCase().indexOf(q) !== -1; });
+    if (shown.length === 0) { box.appendChild(el('span', 'picks-empty', '沒有符合「' + state.pickQ.trim() + '」的分類')); return; }
+    shown.forEach(function (c) {
+      var b = el('button', 'pick', c); b.type = 'button';
+      b.setAttribute('aria-pressed', state.picked.indexOf(c) !== -1 ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        var i = state.picked.indexOf(c);
+        if (i === -1) state.picked.push(c); else state.picked.splice(i, 1);
+        renderPicks();
+      });
+      box.appendChild(b);
+    });
+  }
+  function matches(l) {
+    var q = state.q.trim().toLowerCase();
+    if (!q) return true;
+    return [l.title, l.url, l.note, linkCats(l).join(' ')].some(function (x) { return (x || '').toLowerCase().indexOf(q) !== -1; });
+  }
+  function renderList() {
+    var box = $('list'); box.textContent = '';
+    if (!state.dbOk) {
+      var e0 = el('div', 'empty'); e0.appendChild(el('strong', null, '無法讀取收藏')); e0.appendChild(document.createTextNode('這個頁面需要登入後才能存取資料。請重新整理，或確認你已登入。')); box.appendChild(e0); return;
+    }
+    if (!state.loaded) { box.appendChild(el('div', 'empty', '載入中…')); return; }
+    if (state.links.length === 0) {
+      var e1 = el('div', 'empty');
+      e1.appendChild(el('strong', null, '還沒有任何收藏'));
+      e1.appendChild(document.createTextNode(state.canWrite ? '在上方貼上第一個網址，選好分類就能存起來。' : '這裡還沒有內容。'));
+      box.appendChild(e1); return;
+    }
+    var shown = state.links.filter(matches).filter(function (l) {
+      if (state.filter === '__all') return true;
+      if (state.filter === '__none') return linkCats(l).length === 0;
+      return linkCats(l).indexOf(state.filter) !== -1;
+    });
+    if (shown.length === 0) { box.appendChild(el('div', 'empty', '找不到符合的連結。')); return; }
+
+    var order = allCats().concat(['']);
+    var groups = state.filter === '__all' ? order : [state.filter === '__none' ? '' : state.filter];
+    groups.forEach(function (c) {
+      var items = shown.filter(function (l) {
+        var cs = linkCats(l);
+        return c === '' ? cs.length === 0 : cs.indexOf(c) !== -1;
+      });
+      if (!items.length) return;
+      var g = el('section', 'group');
+      if (state.filter === '__all') g.appendChild(el('h2', null, (c || '未分類') + '　' + items.length));
+      items.forEach(function (l) { g.appendChild(renderItem(l)); });
+      box.appendChild(g);
+    });
+  }
+  function renderItem(l) {
+    var row = el('article', 'item');
+    var hostName = host(l.url || '');
+    var tile = tileEl(l.image, hostName.charAt(0), hostName);
+    row.appendChild(tile);
+
+    var info = el('div', 'info');
+    var href = safeHref(l.url);
+    var title = l.title || hostName;
+    if (href) {
+      var a = el('a', 'title', title); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      info.appendChild(a);
+    } else { info.appendChild(el('span', 'title', title)); }
+    info.appendChild(el('p', 'url', hostName + (l.category ? '' : '')));
+    if (l.note) info.appendChild(el('p', 'note', l.note));
+    var cs = linkCats(l);
+    if (cs.length) {
+      var chips = el('div', 'chips');
+      cs.forEach(function (c) {
+        var ch = el('button', 'chip', c); ch.type = 'button';
+        ch.title = '只看「' + c + '」';
+        ch.addEventListener('click', function () { state.filter = c; render(); });
+        chips.appendChild(ch);
+      });
+      info.appendChild(chips);
+    }
+    var d = fmtDate(l.createdAt); if (d) info.appendChild(el('div', 'date', d));
+    row.appendChild(info);
+
+    var acts = el('div', 'acts');
+    var copy = el('button', 'act', '複製'); copy.type = 'button';
+    copy.addEventListener('click', function () { copyText(l.url, copy); });
+    acts.appendChild(copy);
+    if (state.canWrite) {
+      var ed = el('button', 'act', '編輯'); ed.type = 'button';
+      ed.addEventListener('click', function () { startEdit(l); });
+      acts.appendChild(ed);
+      var del = el('button', 'act del' + (state.armed === l.id ? ' armed' : ''), state.armed === l.id ? '確定刪除？' : '刪除');
+      del.type = 'button';
+      del.addEventListener('click', function () { onDelete(l, del); });
+      acts.appendChild(del);
+    }
+    row.appendChild(acts);
+    return row;
+  }
+
+  /* ---------- actions ---------- */
+  function copyText(text, btn) {
+    function ok() { toast('已複製網址'); }
+    function fail() { toast('無法自動複製，請手動選取網址'); }
+    try { navigator.clipboard.writeText(text).then(ok, fail); } catch (e) { fail(); }
+  }
+  var armTimer = null;
+  function onDelete(l, btn) {
+    if (state.armed !== l.id) {
+      state.armed = l.id; renderList();
+      clearTimeout(armTimer); armTimer = setTimeout(function () { state.armed = null; renderList(); }, 3000);
+      return;
+    }
+    clearTimeout(armTimer); state.armed = null;
+    db.doc(sp() + '/links/' + l.id).delete().then(function () {
+      if (state.editing && state.editing.id === l.id) cancelEdit();
+      dropAsset(l.image).then(refreshUsage);
+      toast('已刪除');
+    }, function () { toast('刪除失敗，請稍後再試'); });
+  }
+  function startEdit(l) {
+    state.editing = l;
+    $('fUrl').value = l.url || ''; $('fTitle').value = l.title || ''; $('fNote').value = l.note || '';
+    state.picked = linkCats(l).slice();
+    state.pickQ = ''; $('pickQ').value = '';
+    renderPicks();
+    if (linkPicker) linkPicker.reset(l.image || null);
+    $('saveBtn').textContent = '儲存變更';
+    $('cancelBtn').hidden = false; $('modeLabel').hidden = false;
+    $('linkForm').scrollIntoView({ block: 'nearest' });
+    $('fUrl').focus();
+  }
+  function cancelEdit() {
+    state.editing = null;
+    $('linkForm').reset();
+    if (linkPicker) linkPicker.reset(null);
+    $('saveBtn').textContent = '新增收藏';
+    $('cancelBtn').hidden = true; $('modeLabel').hidden = true;
+    state.picked = []; state.pickQ = '';
+    renderPicks();
+  }
+  $('cancelBtn').addEventListener('click', cancelEdit);
+
+  $('pickQ').addEventListener('input', function (e) { state.pickQ = e.target.value; renderPicks(); });
+  $('pickQ').addEventListener('keydown', function (e) {
+    if (e.isComposing || e.keyCode === 229) return; /* Enter that only confirms an IME candidate */
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      var q = state.pickQ.trim().toLowerCase();
+      if (!q) return;
+      var hit = allCats().filter(function (c) { return c.toLowerCase().indexOf(q) !== -1 && state.picked.indexOf(c) === -1; })[0];
+      if (hit) { state.picked.push(hit); e.target.value = ''; state.pickQ = ''; renderPicks(); }
+    } else if (e.key === 'Escape') {
+      e.target.value = ''; state.pickQ = ''; renderPicks();
+    }
+  });
+
+  $('linkForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    if (!db || state.saving) return;
+    var url = normUrl($('fUrl').value);
+    if (!url) { toast('網址格式不正確，請檢查後再試'); $('fUrl').focus(); return; }
+    var data = {
+      url: url,
+      title: $('fTitle').value.trim(),
+      categories: state.picked.slice(),
+      note: $('fNote').value.trim(),
+      updatedAt: Date.now()
+    };
+    var editing = state.editing;
+    if (!editing && state.links.some(function (l) { return l.url === url; })) { toast('這個網址已經收藏過了'); return; }
+    state.saving = true; $('saveBtn').disabled = true;
+    var path = sp();
+    (async function () {
+      var img;
+      try { img = await resolveImage(linkPicker, editing ? editing.image : null); }
+      catch (e) { toast(uploadErrMsg(e)); return; }
+      if (img.imageId) data.image = img.imageId;
+      try {
+        if (editing) await db.doc(path + '/links/' + editing.id).set(Object.assign({ createdAt: editing.createdAt || Date.now() }, data));
+        else await db.collection(path + '/links').add(Object.assign({ createdAt: Date.now() }, data));
+      } catch (e) {
+        dropAsset(img.uploadedId); /* the save failed, so remove the file we just stored */
+        toast(e && e.code === 'quota_exceeded' ? '儲存空間已滿，請先刪除一些收藏' : '儲存失敗，請稍後再試');
+        return;
+      }
+      dropAsset(img.oldToDelete);
+      toast(editing ? '已儲存變更' : '已新增收藏');
+      if (editing) cancelEdit(); else { $('linkForm').reset(); if (linkPicker) linkPicker.reset(null); state.pickQ = ''; renderPicks(); $('fUrl').focus(); }
+      refreshUsage();
+    })().then(function () { state.saving = false; $('saveBtn').disabled = false; });
+  });
+
+  function writeCats(items) {
+    var path = sp() + '/meta/categories';
+    catChain = catChain.then(function () { return db.doc(path).set({ items: items }); });
+    return catChain.catch(function () { toast('分類儲存失敗，請稍後再試'); });
+  }
+  $('catForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var name = $('catInput').value.trim();
+    if (!name) return;
+    if (allCats().indexOf(name) !== -1) { toast('已經有這個分類了'); return; }
+    $('catInput').value = '';
+    writeCats(state.cats.concat([name])).then(function () { state.filter = name; render(); });
+  });
+  function removeCategory(name) {
+    if (countFor(name) > 0) return;
+    writeCats(state.cats.filter(function (c) { return c !== name; }));
+  }
+
+  $('q').addEventListener('input', function (e) { state.q = e.target.value; renderList(); });
+
+  /* ---------- spaces (top level) ---------- */
+  var MAX_SPACES = 40; /* each space holds one live count subscription on the home page; the view allows 64 */
+  var subs = { spaces: null, counts: {}, space: [] };
+  function unsub(u) { try { if (u) u(); } catch (e) {} }
+
+  function renderHome() {
+    $('spaceForm').hidden = !(state.canWrite && state.dbOk);
+    var box = $('spaces'); box.textContent = '';
+    var hq = state.homeQ.trim();
+    var ready = state.dbOk && state.spacesLoaded && state.spaces.length > 0;
+    var searching = hq !== '' && ready;
+    box.hidden = searching; $('results').hidden = !searching;
+    if (!searching) $('results').textContent = '';
+    $('homeSearch').hidden = !ready;
+    if (searching) { renderResults(hq); return; }
+    if (!state.dbOk) {
+      var e0 = el('div', 'empty'); e0.appendChild(el('strong', null, '無法讀取收藏')); e0.appendChild(document.createTextNode('這個頁面需要登入後才能存取資料。請重新整理，或確認你已登入。')); box.appendChild(e0); return;
+    }
+    if (!state.spacesLoaded) { box.appendChild(el('div', 'empty', '載入中…')); return; }
+    if (state.spaces.length === 0) {
+      var e1 = el('div', 'empty');
+      e1.appendChild(el('strong', null, '還沒有任何分區'));
+      e1.appendChild(document.createTextNode(state.canWrite ? '先建立第一個分區，例如「工作」「學習」「生活」。每個分區有自己的連結和分類。' : '這裡還沒有內容。'));
+      box.appendChild(e1); return;
+    }
+    state.spaces.forEach(function (s) { box.appendChild(renderSpaceCard(s)); });
+  }
+
+  function renderSpaceCard(s) {
+    var card = el('article', 'space');
+    if (state.renamingSpace === s.id) {
+      var f = el('form', 'space-rename');
+      var inp = el('input'); inp.type = 'text'; inp.maxLength = 20; inp.setAttribute('aria-label', '分區名稱');
+      inp.value = state.renameDraft != null ? state.renameDraft : s.name;
+      inp.addEventListener('input', function () { state.renameDraft = inp.value; });
+      f.appendChild(inp);
+      if (state.editPicker) {
+        var pf = el('div', 'field'); pf.appendChild(el('span', 'lbl', '圖片（選填）')); pf.appendChild(state.editPicker.el);
+        f.appendChild(pf);
+      }
+      var btns = el('div', 'row-btns');
+      var ok = el('button', 'btn small', '儲存'); ok.type = 'submit';
+      var no = el('button', 'btn alt small', '取消'); no.type = 'button';
+      no.addEventListener('click', function () { state.renamingSpace = null; state.renameDraft = null; closeEditPicker(); renderHome(); });
+      btns.appendChild(ok); btns.appendChild(no); f.appendChild(btns);
+      f.addEventListener('submit', function (ev) { ev.preventDefault(); renameSpace(s, inp.value); });
+      card.appendChild(f);
+      setTimeout(function () { try { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); } catch (e) {} }, 0);
+      return card;
+    }
+    var open = el('button', 'space-open'); open.type = 'button';
+    var tile = tileEl(s.image, s.name.charAt(0), s.name);
+    open.appendChild(tile);
+    open.appendChild(el('span', 'space-name', s.name));
+    var n = state.spaceCounts[s.id];
+    var made = fmtDate(s.createdAt);
+    open.appendChild(el('span', 'space-meta', (n == null ? '…' : n + ' 個連結') + (made ? '・建立於 ' + made : '')));
+    open.addEventListener('click', function () { openSpace(s.id); });
+    card.appendChild(open);
+
+    if (state.canWrite) {
+      var acts = el('div', 'space-acts');
+      var rn = el('button', 'act', '編輯'); rn.type = 'button';
+      rn.addEventListener('click', function () {
+        closeEditPicker();
+        state.renamingSpace = s.id; state.renameDraft = null; state.armedSpace = null;
+        state.editPicker = assetsApi ? makeImagePicker(s.image || null) : null;
+        renderHome();
+      });
+      acts.appendChild(rn);
+      var busy = state.deletingSpace === s.id;
+      var armed = state.armedSpace === s.id;
+      var label = busy ? '刪除中…' : armed ? '確定刪除' + (n ? '（含 ' + n + ' 個連結）' : '') + '？' : '刪除';
+      var del = el('button', 'act del' + (armed ? ' armed' : ''), label); del.type = 'button'; del.disabled = busy;
+      del.addEventListener('click', function () { onDeleteSpace(s); });
+      acts.appendChild(del);
+      card.appendChild(acts);
+    }
+    return card;
+  }
+
+  /* search across every space: space names, plus each space's links by title, url, note and categories */
+  var MAX_RESULTS = 100;
+  function linkMatches(l, q) {
+    return [l.title, l.url, l.note, linkCats(l).join(' ')].some(function (x) { return (x || '').toLowerCase().indexOf(q) !== -1; });
+  }
+  function renderResults(raw) {
+    var q = raw.toLowerCase();
+    var box = $('results'); box.textContent = '';
+    var shown = 0, total = 0, loaded = 0;
+
+    var nameHits = state.spaces.filter(function (s) { return s.name.toLowerCase().indexOf(q) !== -1; });
+    if (nameHits.length) {
+      var g0 = el('section', 'group');
+      g0.appendChild(el('h2', null, '分區　' + nameHits.length));
+      var grid = el('div', 'spaces');
+      nameHits.forEach(function (s) { grid.appendChild(renderSpaceCard(s)); });
+      g0.appendChild(grid); box.appendChild(g0);
+    }
+    state.spaces.forEach(function (s) {
+      var all = state.spaceLinks[s.id];
+      if (!all) return;
+      loaded++;
+      var hits = all.filter(function (l) { return linkMatches(l, q); })
+        .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+      if (!hits.length) return;
+      total += hits.length;
+      var room = MAX_RESULTS - shown;
+      if (room <= 0) return;
+      var g = el('section', 'group');
+      g.appendChild(el('h2', null, s.name + '　' + hits.length));
+      hits.slice(0, room).forEach(function (l) { g.appendChild(renderResultItem(l, s, raw)); shown++; });
+      box.appendChild(g);
+    });
+
+    var stillLoading = loaded < state.spaces.length;
+    if (!nameHits.length && total === 0) {
+      box.appendChild(el('div', 'empty', stillLoading ? '搜尋中…' : '找不到符合「' + raw + '」的分區或連結。'));
+      return;
+    }
+    if (total > shown) box.appendChild(el('p', 'res-meta', '共 ' + total + ' 筆符合，只顯示前 ' + MAX_RESULTS + ' 筆，請輸入更多文字縮小範圍。'));
+    if (stillLoading) box.appendChild(el('p', 'res-meta', '還在載入部分分區的內容，結果可能不完整…'));
+  }
+  function renderResultItem(l, s, raw) {
+    var row = el('article', 'item');
+    var hostName = host(l.url || '');
+    var tile = tileEl(l.image, hostName.charAt(0), hostName);
+    row.appendChild(tile);
+    var info = el('div', 'info');
+    var href = safeHref(l.url);
+    var title = l.title || hostName;
+    if (href) {
+      var a = el('a', 'title', title); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      info.appendChild(a);
+    } else { info.appendChild(el('span', 'title', title)); }
+    info.appendChild(el('p', 'url', hostName));
+    if (l.note) info.appendChild(el('p', 'note', l.note));
+    var cs = linkCats(l);
+    if (cs.length) {
+      var chips = el('div', 'chips');
+      cs.forEach(function (c) { chips.appendChild(el('span', 'chip static', c)); });
+      info.appendChild(chips);
+    }
+    row.appendChild(info);
+    var acts = el('div', 'acts');
+    var copy = el('button', 'act', '複製'); copy.type = 'button';
+    copy.addEventListener('click', function () { copyText(l.url, copy); });
+    acts.appendChild(copy);
+    var go = el('button', 'act', '開啟分區'); go.type = 'button';
+    go.addEventListener('click', function () { openSpace(s.id, raw); });
+    acts.appendChild(go);
+    row.appendChild(acts);
+    return row;
+  }
+
+  var spaceArmTimer = null;
+  function onDeleteSpace(s) {
+    if (state.armedSpace !== s.id) {
+      state.armedSpace = s.id; renderHome();
+      clearTimeout(spaceArmTimer); spaceArmTimer = setTimeout(function () { state.armedSpace = null; renderHome(); }, 4000);
+      return;
+    }
+    clearTimeout(spaceArmTimer); state.armedSpace = null;
+    deleteSpace(s);
+  }
+  /* a space's links and category list are separate documents, so remove them first, then the space itself */
+  async function deleteSpace(s) {
+    state.deletingSpace = s.id; renderHome();
+    try {
+      var snap = await db.collection('spaces/' + s.id + '/links').limit(1000).get();
+      var imgs = [];
+      for (var i = 0; i < snap.docs.length; i++) {
+        var dd = snap.docs[i].data();
+        await db.doc('spaces/' + s.id + '/links/' + snap.docs[i].id).delete();
+        if (dd && dd.image) imgs.push(dd.image);
+      }
+      await db.doc('spaces/' + s.id + '/meta/categories').delete();
+      await db.doc('spaces/' + s.id).delete();
+      if (s.image) imgs.push(s.image);
+      for (var k = 0; k < imgs.length; k++) await dropAsset(imgs[k]);
+      toast('已刪除分區'); refreshUsage();
+    } catch (e) { toast('刪除失敗，請稍後再試'); }
+    state.deletingSpace = null; renderHome();
+  }
+
+  function closeEditPicker() { if (state.editPicker) state.editPicker.dispose(); state.editPicker = null; }
+  async function renameSpace(s, raw) {
+    if (state.savingSpace) return;
+    var name = (raw || '').trim();
+    if (!name) { toast('分區名稱不能是空白'); return; }
+    var pk = state.editPicker;
+    var nameSame = name === s.name;
+    var imageChanged = !!(pk && (pk.state.file || pk.state.removed));
+    if (nameSame && !imageChanged) { state.renamingSpace = null; state.renameDraft = null; closeEditPicker(); renderHome(); return; }
+    if (!nameSame && state.spaces.some(function (x) { return x.name === name; })) { toast('已經有同名的分區了'); return; }
+    state.savingSpace = true;
+    try {
+      var img;
+      try { img = await resolveImage(pk, s.image || null); } catch (e) { toast(uploadErrMsg(e)); return; }
+      var data = { name: name, createdAt: s.createdAt || Date.now() };
+      if (img.imageId) data.image = img.imageId;
+      try { await db.doc('spaces/' + s.id).set(data); }
+      catch (e) { dropAsset(img.uploadedId); toast('儲存失敗，請稍後再試'); return; }
+      dropAsset(img.oldToDelete);
+      state.renamingSpace = null; state.renameDraft = null; closeEditPicker();
+      toast('已儲存分區'); render(); refreshUsage();
+    } finally { state.savingSpace = false; }
+  }
+
+  $('spaceForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    if (!db) return;
+    var name = $('spaceInput').value.trim();
+    if (!name) return;
+    if (state.spaces.some(function (x) { return x.name === name; })) { toast('已經有同名的分區了'); return; }
+    if (state.spaces.length >= MAX_SPACES) { toast('分區最多 ' + MAX_SPACES + ' 個，請先刪除不用的分區'); return; }
+    if (state.creatingSpace) return;
+    state.creatingSpace = true;
+    (async function () {
+      var img;
+      try { img = await resolveImage(spacePicker, null); } catch (e) { toast(uploadErrMsg(e)); return; }
+      var data = { name: name, createdAt: Date.now() };
+      if (img.imageId) data.image = img.imageId;
+      try { await db.collection('spaces').add(data); }
+      catch (e) {
+        dropAsset(img.uploadedId);
+        toast(e && e.code === 'quota_exceeded' ? '儲存空間已滿，請先刪除一些內容' : '建立失敗，請稍後再試');
+        return;
+      }
+      $('spaceInput').value = ''; if (spacePicker) spacePicker.reset(null);
+      toast('已建立分區「' + name + '」'); refreshUsage();
+    })().then(function () { state.creatingSpace = false; });
+  });
+
+  /* ---------- navigation and subscriptions ---------- */
+  function clearCountSubs() {
+    Object.keys(subs.counts).forEach(function (id) { unsub(subs.counts[id]); });
+    subs.counts = {}; state.spaceCounts = {}; state.spaceLinks = {};
+  }
+  /* home page only: one live count per space, reconciled when the space list changes */
+  function syncCountSubs() {
+    if (state.view !== 'home') return;
+    var ids = state.spaces.map(function (s) { return s.id; });
+    Object.keys(subs.counts).forEach(function (id) {
+      if (ids.indexOf(id) === -1) { unsub(subs.counts[id]); delete subs.counts[id]; delete state.spaceCounts[id]; delete state.spaceLinks[id]; }
+    });
+    ids.forEach(function (id) {
+      if (subs.counts[id]) return;
+      subs.counts[id] = db.collection('spaces/' + id + '/links').onSnapshot(function (snap) {
+        state.spaceCounts[id] = snap.size;
+        state.spaceLinks[id] = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+        if (state.view === 'home') renderHome();
+      }, function () { /* the count is a nicety; the card still opens */ });
+    });
+  }
+  function listenSpaces() {
+    subs.spaces = db.collection('spaces').orderBy('createdAt', 'asc').limit(200).onSnapshot(function (snap) {
+      state.spaces = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      state.spacesLoaded = true;
+      if (state.view === 'space' && !spaceById(state.spaceId)) { goHome(); toast('這個分區已被刪除'); return; }
+      syncCountSubs();
+      render();
+    }, onErr);
+  }
+
+  function resetSpaceState() {
+    state.links = []; state.cats = []; state.loaded = false; state.filter = '__all'; state.q = ''; $('q').value = '';
+    state.armed = null; state.pickQ = ''; $('pickQ').value = '';
+    cancelEdit();
+  }
+  function openSpace(id, presetQ) {
+    if (!spaceById(id)) return;
+    clearCountSubs();
+    state.view = 'space'; state.spaceId = id; state.renamingSpace = null; state.armedSpace = null;
+    resetSpaceState();
+    if (presetQ) { state.q = presetQ; $('q').value = presetQ; } /* land in the space with the same search applied */
+    subs.space.push(db.collection('spaces/' + id + '/links').orderBy('createdAt', 'desc').limit(1000).onSnapshot(function (snap) {
+      if (state.spaceId !== id) return;
+      state.links = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      state.loaded = true; render();
+    }, onErr));
+    subs.space.push(db.doc('spaces/' + id + '/meta/categories').onSnapshot(function (snap) {
+      if (state.spaceId !== id) return;
+      var d = snap.exists ? snap.data() : null;
+      state.cats = d && Array.isArray(d.items) ? d.items.filter(function (x) { return typeof x === 'string' && x; }) : [];
+      render();
+    }, onErr));
+    render(); window.scrollTo(0, 0);
+  }
+  function goHome() {
+    subs.space.forEach(unsub); subs.space = [];
+    state.view = 'home'; state.spaceId = null;
+    resetSpaceState();
+    syncCountSubs(); render(); window.scrollTo(0, 0);
+  }
+  $('backBtn').addEventListener('click', goHome);
+  $('homeQ').addEventListener('input', function (e) { state.homeQ = e.target.value; if (state.view === 'home') renderHome(); });
+  $('homeQ').addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && state.homeQ) { e.target.value = ''; state.homeQ = ''; renderHome(); }
+  });
+
+  /* ---------- boot (GitHub Pages: Firebase sign-in + Firestore) ---------- */
+  function onErr() { state.dbOk = false; render(); }
+
+  /* A thin adapter so the rest of the page keeps the same small API. Everything lives under users/<uid>/. */
+  function makeDb(fs, uid) {
+    var base = 'users/' + uid + '/';
+    function wrapQuery(q) {
+      return {
+        get: function () { return getDocs(q); },
+        onSnapshot: function (next, err) { return fsOnSnapshot(q, next, err); }
+      };
+    }
+    return {
+      doc: function (path) {
+        var ref = fsDoc(fs, base + path);
+        return {
+          get: function () { return getDoc(ref).then(function (s) { return { exists: s.exists(), data: function () { return s.data(); } }; }); },
+          onSnapshot: function (next, err) {
+            return fsOnSnapshot(ref, function (s) { next({ exists: s.exists(), data: function () { return s.data(); } }); }, err);
+          },
+          set: function (d) { return setDoc(ref, d); },
+          update: function (d) { return updateDoc(ref, d); },
+          delete: function () { return deleteDoc(ref); }
+        };
+      },
+      collection: function (path) {
+        var col = fsCollection(fs, base + path);
+        return {
+          add: function (d) { return addDoc(col, d); },
+          get: function () { return getDocs(col); },
+          onSnapshot: function (next, err) { return fsOnSnapshot(col, next, err); },
+          limit: function (n) { return wrapQuery(fsQuery(col, fsLimit(n))); },
+          orderBy: function (field, dir) {
+            return { limit: function (n) { return wrapQuery(fsQuery(col, fsOrderBy(field, dir || 'asc'), fsLimit(n))); } };
+          }
+        };
+      }
+    };
+  }
+
+  /* the same upload / delete / list surface the page code uses, backed by Firestore documents */
+  function makeImageStore() {
+    return {
+      upload: async function (blob) {
+        var data = await blobToDataUrl(blob);
+        if (data.length > 700000) { var e = new Error('too large'); e.code = 'too_large'; throw e; }
+        var ref = await db.collection('images').add({ data: data, createdAt: Date.now() });
+        imageCache.set(ref.id, data);
+        return { id: ref.id };
+      },
+      delete: async function (id) { imageCache.delete(id); await db.doc('images/' + id).delete(); return { deleted: true }; },
+      list: async function () { return { usage: null }; }
+    };
+  }
+
+  function showGate(title, text, withBtn) {
+    $('gateTitle').textContent = title; $('gateText').textContent = text;
+    $('signInBtn').hidden = !withBtn;
+    $('gate').hidden = false; document.body.classList.add('gated');
+    $('summary').textContent = '尚未登入';
+  }
+  function hideGate() { $('gate').hidden = true; document.body.classList.remove('gated'); }
+  function configured() { return firebaseConfig.apiKey && firebaseConfig.apiKey.indexOf('YOUR_') !== 0; }
+
+  /* back to a clean slate when the account changes or signs out, so nothing from one session lingers */
+  function teardown() {
+    unsub(subs.spaces); subs.spaces = null;
+    clearCountSubs();
+    subs.space.forEach(unsub); subs.space = [];
+    closeEditPicker();
+    if (linkPicker) { linkPicker.dispose(); $('fImageMount').textContent = ''; linkPicker = null; }
+    if (spacePicker) { spacePicker.dispose(); $('sImageMount').textContent = ''; spacePicker = null; }
+    $('fImageField').hidden = true; $('sImageField').hidden = true;
+    assetsApi = null; imageCache.clear(); imagePending = {}; db = null;
+    state.view = 'home'; state.spaceId = null; state.spaces = []; state.spacesLoaded = false;
+    state.links = []; state.cats = []; state.loaded = false; state.filter = '__all'; state.q = ''; $('q').value = '';
+    state.homeQ = ''; $('homeQ').value = ''; state.editing = null; state.armed = null; state.renamingSpace = null; state.armedSpace = null;
+    state.saving = false; state.savingSpace = false; state.creatingSpace = false; state.deletingSpace = null;
+    state.canWrite = false; state.dbOk = true;
+  }
+
+  function boot() {
+    window.__appStarted = true;
+    if (!configured()) {
+      showGate('還沒有設定 Firebase', '請先把 index.html 上方的 firebaseConfig 換成你自己專案的設定，步驟寫在 README.md。', false);
+      return;
+    }
+    var app = initializeApp(firebaseConfig);
+    var auth = getAuth(app);
+    var fs = getFirestore(app);
+
+    $('signInBtn').addEventListener('click', function () {
+      var provider = new GoogleAuthProvider();
+      signInWithPopup(auth, provider).catch(function (e) {
+        var code = e && e.code;
+        if (code === 'auth/popup-blocked') { signInWithRedirect(auth, provider); return; }
+        if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return;
+        toast(code === 'auth/unauthorized-domain' ? '這個網域還沒加入 Firebase 的授權網域' : '登入失敗，請稍後再試');
+      });
+    });
+    $('signOutBtn').addEventListener('click', function () { signOut(auth); });
+
+    onAuthStateChanged(auth, function (user) {
+      teardown();
+      if (!user) {
+        $('who').hidden = true; $('signOutBtn').hidden = true;
+        showGate('請先登入', '這個收藏庫是私人的，請用 Google 帳號登入。', true);
+        render();
+        return;
+      }
+      hideGate();
+      $('who').textContent = user.email || user.displayName || '';
+      $('who').hidden = false; $('signOutBtn').hidden = false;
+      db = makeDb(fs, user.uid);
+      state.canWrite = true; state.dbOk = true;
+      assetsApi = makeImageStore();
+      linkPicker = makeImagePicker(null); $('fImageMount').appendChild(linkPicker.el); $('fImageField').hidden = false;
+      spacePicker = makeImagePicker(null); $('sImageMount').appendChild(spacePicker.el); $('sImageField').hidden = false;
+      listenSpaces();
+      render();
+    }, onErr);
+  }
+  render();
+  boot();
+})();
+</script>
+</body>
+</html>
