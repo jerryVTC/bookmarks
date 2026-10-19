@@ -208,6 +208,50 @@
   .gate-title { margin: 0; font-size: 1.25rem; font-weight: 500; line-height: 1.4; }
   .gate-text { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
   body.gated #homeView, body.gated #spaceView, body.gated #backBtn { display: none !important; }
+
+  /* ---------- sharing ---------- */
+  .act.on { color: var(--accent); }
+  .shares { margin-top: 28px; }
+  .shares-title { margin: 0 0 8px; display: flex; align-items: center; gap: 14px; font-family: var(--font-mono); font-weight: 500; font-size: 0.8125rem; letter-spacing: 0.12em; color: var(--muted); }
+  .shares-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .shares-note { margin: 0 0 8px; color: var(--danger); font-size: 0.9rem; }
+  .share-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding-block: 10px; border-top: 1px solid var(--line); }
+  .share-badge { font-family: var(--font-mono); font-size: 0.75rem; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+  .share-info { display: flex; flex-direction: column; min-width: 0; }
+  .share-name { overflow-wrap: anywhere; font-weight: 500; }
+  .share-sub { color: var(--muted); font-size: 0.8125rem; }
+  .modal { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal-card { background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; padding: 20px; width: min(520px, 100%); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+  .modal-title { margin: 0; font-size: 1.125rem; font-weight: 500; overflow-wrap: anywhere; }
+  .modal-note { margin: 0; color: var(--muted); font-size: 0.875rem; }
+  .modal-err { margin: 0; color: var(--danger); font-size: 0.875rem; }
+  .share-modes { display: flex; flex-direction: column; gap: 8px; }
+  .share-mode { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+  .share-mode input { margin-top: 5px; }
+  .share-emails { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 8px 10px; font: inherit; color: inherit; resize: vertical; }
+  .share-linkrow { display: flex; gap: 8px; }
+  .share-linkrow input { flex: 1; min-width: 0; }
+  .acct { display: flex; flex-direction: column; gap: 8px; }
+  .acct-box { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 6px 8px; cursor: text; }
+  .acct-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .acct-chips { display: contents; }
+  .acct-chip { display: inline-flex; align-items: center; gap: 4px; background: color-mix(in srgb, var(--accent) 14%, transparent); border: 1px solid transparent; border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 0.875rem; overflow-wrap: anywhere; }
+  .acct-chip.unseen { background: transparent; border: 1px dashed var(--muted); }
+  .acct-x { border: 0; background: transparent; cursor: pointer; color: var(--muted); min-width: 28px; min-height: 28px; border-radius: 50%; font-size: 1.1rem; line-height: 1; }
+  .acct-x:hover { color: var(--danger); }
+  .acct-box input.acct-input { flex: 1; min-width: 150px; width: auto; border: 0; box-shadow: none; background: transparent; outline: none; padding: 6px 2px; }
+  .acct-field { position: relative; }
+  .acct-suggest { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5; box-shadow: 0 6px 20px rgba(0,0,0,.18); list-style: none; margin: 0; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); max-height: 180px; overflow: auto; }
+  .acct-suggest li { padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column; overflow-wrap: anywhere; }
+  .acct-suggest li[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .acct-suggest .acct-none { color: var(--muted); cursor: default; }
+  .acct-sub { font-size: 0.8125rem; color: var(--muted); }
+  .modal-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .share-head { display: flex; gap: 14px; align-items: center; margin-bottom: 16px; }
+  .share-title { margin: 0; font-size: 1.25rem; font-weight: 500; overflow-wrap: anywhere; }
+  .share-meta { margin: 2px 0 0; color: var(--muted); font-size: 0.875rem; }
+  body.viewing #homeView, body.viewing #spaceView, body.viewing #backBtn, body.viewing #gate { display: none !important; }
+  @media (max-width: 520px) { .share-row { grid-template-columns: auto minmax(0, 1fr); } .share-row .acts { grid-column: 1 / -1; } }
 </style>
 
 </head>
@@ -232,6 +276,21 @@
     <button class="btn" id="signInBtn" type="button" hidden>用 Google 帳號登入</button>
   </section>
 
+  <section id="shareView" hidden>
+    <div class="share-head" id="shareHead" hidden>
+      <div id="shareTileSlot"></div>
+      <div><h2 class="share-title" id="shareTitle"></h2><p class="share-meta" id="shareMeta"></p></div>
+    </div>
+    <div class="gate" id="shareMsg" hidden>
+      <p class="gate-text" id="shareMsgText"></p>
+      <button class="btn" id="shareSignIn" type="button" hidden>用 Google 帳號登入</button>
+    </div>
+    <div class="home-search" id="shareSearch" hidden>
+      <input type="search" id="shareQ" placeholder="搜尋這個分享裡的連結" aria-label="搜尋分享內容" autocomplete="off">
+    </div>
+    <div id="shareItems"></div>
+  </section>
+
   <section id="homeView">
     <div class="home-search" id="homeSearch" hidden>
       <input type="search" id="homeQ" placeholder="搜尋所有分區的連結、分類或分區名稱" aria-label="搜尋全部分區" autocomplete="off">
@@ -248,6 +307,7 @@
       <button class="btn" type="submit">建立分區</button>
     </form>
     <div class="spaces" id="spaces" aria-live="polite"></div>
+    <section class="shares" id="shareSection" hidden></section>
     <div id="results" aria-live="polite" hidden></div>
   </section>
 
@@ -289,7 +349,7 @@
           <label for="fVis">最外層搜尋</label>
           <select id="fVis">
             <option value="show">顯示：外層搜尋找得到</option>
-            <option value="hide">隱藏：外層搜尋找不到</option>
+            <option value="hide">隱藏：外層搜尋找不到，也不會被分享</option>
           </select>
         </div>
         <div class="field f-img" id="fImageField" hidden>
@@ -314,6 +374,7 @@
   </div>
   <p class="usage" id="usage" hidden></p>
 </div>
+<div class="modal" id="shareModal" role="dialog" aria-modal="true" aria-label="分享設定" hidden></div>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script>
@@ -335,7 +396,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   getFirestore, doc as fsDoc, collection as fsCollection, query as fsQuery, orderBy as fsOrderBy, limit as fsLimit,
-  onSnapshot as fsOnSnapshot, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc
+  onSnapshot as fsOnSnapshot, where as fsWhere, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 /* 把下面的設定換成你自己的 Firebase 專案設定（Firebase 控制台 > 專案設定 > 你的應用程式）。
@@ -367,6 +428,7 @@ const firebaseConfig = {
   };
   var db = null;
   var assetsApi = null, linkPicker = null, spacePicker = null;
+  var shareHook = null; /* only the GitHub Pages build sets this */
   var toastTimer = null;
   var catChain = Promise.resolve();
 
@@ -694,7 +756,7 @@ const firebaseConfig = {
     } else { info.appendChild(el('span', 'title', title)); }
     info.appendChild(el('p', 'url', hostName + (l.category ? '' : '')));
     if (l.note) info.appendChild(el('p', 'note', l.note));
-    if (l.hideFromHome) info.appendChild(el('p', 'note', '🔒 隱藏：不會出現在最外層搜尋'));
+    if (l.hideFromHome) info.appendChild(el('p', 'note', '🔒 隱藏：不會出現在最外層搜尋，也不會被分享'));
     var cs = linkCats(l);
     if (cs.length) {
       var chips = el('div', 'chips');
@@ -714,6 +776,7 @@ const firebaseConfig = {
     copy.addEventListener('click', function () { copyText(l.url, copy); });
     acts.appendChild(copy);
     if (state.canWrite) {
+      if (shareHook) { var lsb = shareHook.linkBtn(l); if (lsb) acts.appendChild(lsb); }
       var ed = el('button', 'act', '編輯'); ed.type = 'button';
       ed.addEventListener('click', function () { startEdit(l); });
       acts.appendChild(ed);
@@ -852,6 +915,7 @@ const firebaseConfig = {
     var ready = state.dbOk && state.spacesLoaded && state.spaces.length > 0;
     var searching = hq !== '' && ready;
     box.hidden = searching; $('results').hidden = !searching;
+    if (shareHook) shareHook.renderHome(searching);
     if (!searching) $('results').textContent = '';
     $('homeSearch').hidden = !ready;
     if (searching) { renderResults(hq); return; }
@@ -902,6 +966,7 @@ const firebaseConfig = {
 
     if (state.canWrite) {
       var acts = el('div', 'space-acts');
+      if (shareHook) { var shb = shareHook.spaceBtn(s); if (shb) acts.appendChild(shb); }
       var rn = el('button', 'act', '編輯'); rn.type = 'button';
       rn.addEventListener('click', function () {
         closeEditPicker();
@@ -1141,6 +1206,495 @@ const firebaseConfig = {
     if (e.key === 'Escape' && state.homeQ) { e.target.value = ''; state.homeQ = ''; renderHome(); }
   });
 
+  /* ---------- sharing (GitHub Pages build only) ----------
+     A share is a separate copy under shares/<id> (+ shares/<id>/items/*). The owner's own data under users/<uid>/
+     is never opened to anyone else. While the owner has this page open, the copy is kept in sync automatically.
+     Links marked 隱藏 are never copied. */
+  var SH = { fs: null, uid: null, me: '', accounts: [], sample: null, unsubAcc: null, list: [], loaded: false, error: false, unsubList: null, watch: {}, timers: {}, chain: {}, mirror: {}, modal: null, draft: {}, searching: false, warned: false };
+
+  function shareUrl(id) { return location.origin + location.pathname + '#share=' + id; }
+  function shareFor(kind, spaceId, linkId) {
+    for (var i = 0; i < SH.list.length; i++) {
+      var s = SH.list[i];
+      if (s.kind === kind && s.spaceId === spaceId && (kind === 'space' || s.linkId === linkId)) return s;
+    }
+    return null;
+  }
+  /* accounts that have signed in here at least once (written by registerAccount, readable only by the owner) */
+  function knownAccounts() { return SH.accounts.length ? SH.accounts : (SH.sample || []); }
+  function isSubseq(q, s) { var i = 0; for (var k = 0; k < s.length && i < q.length; k++) { if (s.charAt(k) === q.charAt(i)) i++; } return i === q.length; }
+  function accountMatches(raw, skip) {
+    var q = String(raw || '').trim().toLowerCase();
+    var list = knownAccounts().filter(function (a) { return skip.indexOf(a.email) === -1; });
+    if (!q) return list.slice().sort(function (x, y) { return x.email.localeCompare(y.email); }).slice(0, 6);
+    var out = [];
+    list.forEach(function (a) {
+      var e = a.email, n = (a.name || '').toLowerCase(), s = -1;
+      if (e.indexOf(q) === 0) s = 0; else if (n.indexOf(q) === 0) s = 1; else if (e.indexOf(q) !== -1) s = 2; else if (n.indexOf(q) !== -1) s = 3; else if (q.length >= 3 && isSubseq(q, e.split('@')[0])) s = 4;
+      if (s >= 0) out.push({ a: a, s: s });
+    });
+    out.sort(function (x, y) { return x.s - y.s || x.a.email.localeCompare(y.a.email); });
+    return out.slice(0, 6).map(function (x) { return x.a; });
+  }
+  function registerAccount(fs, user) {
+    if (!user || !user.email) return Promise.resolve(false);
+    return setDoc(fsDoc(fs, 'accounts/' + user.uid), { email: String(user.email).toLowerCase(), name: String(user.displayName || '').slice(0, 100), lastSeen: Date.now() })
+      .then(function () { return true; }, function () { return false; });
+  }
+  function imageDataOf(id) {
+    return new Promise(function (resolve) {
+      if (!validImg(id)) { resolve(''); return; }
+      var now = imgSyncSrc(id, function (u) { resolve(u || ''); });
+      if (now) resolve(now);
+    });
+  }
+  async function buildItem(l) {
+    /* keys in alphabetical order, so the stored copy compares equal to what Firestore hands back */
+    return { categories: linkCats(l), createdAt: l.createdAt || 0, imageData: await imageDataOf(l.image), note: l.note || '', title: l.title || '', url: l.url || '' };
+  }
+
+  async function removeShare(s) {
+    var fs = SH.fs; if (!fs) return;
+    var ex = await getDocs(fsCollection(fs, 'shares/' + s.id + '/items'));
+    for (var i = 0; i < ex.docs.length; i++) await deleteDoc(fsDoc(fs, 'shares/' + s.id + '/items/' + ex.docs[i].id));
+    await deleteDoc(fsDoc(fs, 'shares/' + s.id)); /* the parent goes last: the rules read it when deleting items */
+    delete SH.mirror[s.id];
+  }
+
+  async function syncShare(id) {
+    var s = SH.list.filter(function (x) { return x.id === id; })[0];
+    var fs = SH.fs;
+    if (!s || !fs) return;
+    var base = 'users/' + SH.uid + '/spaces/' + s.spaceId;
+    var head = { name: '', imageData: '' }, items = {};
+    if (s.kind === 'space') {
+      var sd = await getDoc(fsDoc(fs, base));
+      if (!sd.exists()) { await removeShare(s); return; }
+      head.name = sd.data().name || '';
+      head.imageData = await imageDataOf(sd.data().image);
+      var ls = await getDocs(fsQuery(fsCollection(fs, base + '/links'), fsLimit(1000)));
+      for (var i = 0; i < ls.docs.length; i++) {
+        var l = ls.docs[i].data();
+        if (l.hideFromHome) continue;
+        items[ls.docs[i].id] = await buildItem(l);
+      }
+    } else {
+      var ld = await getDoc(fsDoc(fs, base + '/links/' + s.linkId));
+      if (!ld.exists()) { await removeShare(s); return; }
+      var l1 = ld.data();
+      head.name = l1.title || host(l1.url || '');
+      if (!l1.hideFromHome) items[ld.id] = await buildItem(l1);
+    }
+    if (SH.fs !== fs) return; /* signed out while we were reading */
+    var ids = Object.keys(items);
+    head.itemCount = ids.length;
+    if (s.name !== head.name || (s.imageData || '') !== head.imageData || s.itemCount !== head.itemCount) {
+      await updateDoc(fsDoc(fs, 'shares/' + id), { name: head.name, imageData: head.imageData, itemCount: head.itemCount, updatedAt: Date.now() });
+    }
+    var mir = SH.mirror[id];
+    if (!mir) {
+      mir = {};
+      var ex = await getDocs(fsCollection(fs, 'shares/' + id + '/items'));
+      ex.docs.forEach(function (d) { mir[d.id] = JSON.stringify(d.data()); });
+      SH.mirror[id] = mir;
+    }
+    for (var k = 0; k < ids.length; k++) {
+      var js = JSON.stringify(items[ids[k]]);
+      if (mir[ids[k]] !== js) { await setDoc(fsDoc(fs, 'shares/' + id + '/items/' + ids[k]), items[ids[k]]); mir[ids[k]] = js; }
+    }
+    var stale = Object.keys(mir).filter(function (x) { return !items[x]; });
+    for (var m = 0; m < stale.length; m++) { await deleteDoc(fsDoc(fs, 'shares/' + id + '/items/' + stale[m])); delete mir[stale[m]]; }
+  }
+  function scheduleSync(id) {
+    clearTimeout(SH.timers[id]);
+    SH.timers[id] = setTimeout(function () {
+      SH.chain[id] = (SH.chain[id] || Promise.resolve()).then(function () { return syncShare(id); }).catch(function () {
+        if (!SH.warned) { SH.warned = true; toast('分享內容同步失敗，請確認 Firestore 規則已更新'); }
+      });
+    }, 500);
+  }
+  function watchShare(s) {
+    var fs = SH.fs, base = 'users/' + SH.uid + '/spaces/' + s.spaceId, us = [];
+    var kick = function () { scheduleSync(s.id); };
+    var quiet = function () {};
+    if (s.kind === 'space') {
+      us.push(fsOnSnapshot(fsDoc(fs, base), kick, quiet));
+      us.push(fsOnSnapshot(fsQuery(fsCollection(fs, base + '/links'), fsLimit(1000)), kick, quiet));
+    } else {
+      us.push(fsOnSnapshot(fsDoc(fs, base + '/links/' + s.linkId), kick, quiet));
+    }
+    SH.watch[s.id] = us;
+  }
+  function unwatchShare(id) {
+    (SH.watch[id] || []).forEach(unsub); delete SH.watch[id];
+    clearTimeout(SH.timers[id]); delete SH.timers[id]; delete SH.chain[id]; delete SH.mirror[id];
+  }
+
+  function startShares(fs, uid, email) {
+    SH.fs = fs; SH.uid = uid; SH.me = String(email || '').toLowerCase();
+    SH.unsubAcc = fsOnSnapshot(fsQuery(fsCollection(fs, 'accounts'), fsLimit(500)), function (snap) {
+      SH.accounts = snap.docs.map(function (d) { var v = d.data() || {}; return { uid: d.id, email: String(v.email || '').toLowerCase(), name: String(v.name || '') }; })
+        .filter(function (a) { return a.email && a.email !== SH.me; });
+      if (curPicker) curPicker.refresh();
+    }, function () { SH.accounts = []; });
+    var q = fsQuery(fsCollection(fs, 'shares'), fsWhere('ownerUid', '==', uid));
+    SH.unsubList = fsOnSnapshot(q, function (snap) {
+      SH.error = false; SH.loaded = true;
+      SH.list = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+        .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+      var have = {};
+      SH.list.forEach(function (s) { have[s.id] = true; if (!SH.watch[s.id]) watchShare(s); });
+      Object.keys(SH.watch).forEach(function (id) { if (!have[id]) unwatchShare(id); });
+      renderShareSection(); if (!(curPicker && curPicker.typing())) renderShareModal(); render();
+    }, function () { SH.error = true; renderShareSection(); });
+  }
+  function stopShares() {
+    unsub(SH.unsubList); unsub(SH.unsubAcc); SH.unsubAcc = null; SH.accounts = []; curPicker = null;
+    Object.keys(SH.watch).forEach(unwatchShare);
+    SH.fs = null; SH.uid = null; SH.list = []; SH.loaded = false; SH.error = false; SH.unsubList = null; SH.modal = null; SH.draft = {}; SH.warned = false;
+    $('shareModal').textContent = ''; $('shareModal').hidden = true; $('shareSection').hidden = true;
+    shareHook = null;
+  }
+
+  /* ----- owner UI ----- */
+  function openShareModal(target) { SH.modal = target; SH.draft = { init: null, armed: false, busy: false, err: '' }; renderShareModal(); }
+  function closeShareModal() { SH.modal = null; curPicker = null; renderShareModal(); }
+  var shareArmTimer = null;
+  function buildAccountPicker(d) {
+    var wrap = el('div', 'acct');
+    var box = el('div', 'acct-box');
+    var chipsEl = el('span', 'acct-chips');
+    var inp = el('input', 'acct-input'); inp.type = 'text'; inp.placeholder = '輸入帳號（電子郵件）'; inp.autocomplete = 'off'; inp.spellcheck = false;
+    inp.setAttribute('aria-label', '加入可以查看的帳號'); inp.setAttribute('role', 'combobox'); inp.setAttribute('aria-expanded', 'false');
+    var list = el('ul', 'acct-suggest'); list.setAttribute('role', 'listbox'); list.hidden = true;
+    var err = el('p', 'modal-err acct-err'); err.hidden = true; err.setAttribute('role', 'alert');
+    var join = el('div', 'acct-join');
+    join.appendChild(el('p', 'modal-note', '對方還沒登入過這個網站？把下面的連結傳給對方，請對方用要被加入的 Google 帳號登入一次，之後就能在這裡找到他。'));
+    var jrow = el('div', 'share-linkrow');
+    var jin = el('input'); jin.type = 'text'; jin.readOnly = true; jin.value = location.origin + location.pathname + '#join'; jin.setAttribute('aria-label', '邀請連結');
+    jin.addEventListener('focus', function () { jin.select(); });
+    var jcp = el('button', 'btn alt small', '複製邀請連結'); jcp.type = 'button';
+    jcp.addEventListener('click', function () { copyText(jin.value, jcp); });
+    jrow.appendChild(jin); jrow.appendChild(jcp); join.appendChild(jrow);
+    var shown = [], active = -1, focused = false, open = false;
+
+    function paintChips() {
+      chipsEl.textContent = '';
+      var known = knownAccounts().map(function (a) { return a.email; });
+      d.viewers.forEach(function (e) {
+        var seen = known.indexOf(e) !== -1;
+        var c = el('span', 'acct-chip' + (seen ? '' : ' unseen'));
+        if (!seen) c.title = '這個帳號還沒在這裡登入過';
+        c.appendChild(el('span', null, e));
+        var x = el('button', 'acct-x', '×'); x.type = 'button'; x.setAttribute('aria-label', '移除 ' + e);
+        x.addEventListener('mousedown', function (ev) { ev.preventDefault(); }); /* keep the input focused so nothing shifts under the pointer */
+        x.addEventListener('click', function () { d.viewers = d.viewers.filter(function (v) { return v !== e; }); err.hidden = true; paintChips(); paintList(); inp.focus(); });
+        c.appendChild(x); chipsEl.appendChild(c);
+      });
+    }
+    function add(email) {
+      var e = String(email).toLowerCase();
+      if (d.viewers.indexOf(e) === -1) d.viewers.push(e);
+      inp.value = ''; err.hidden = true; active = -1; open = false; paintChips(); paintList();
+    }
+    function paintList() {
+      list.textContent = '';
+      var q = inp.value;
+      shown = focused && open ? accountMatches(q, d.viewers) : [];
+      if (!shown.length || active >= shown.length) active = shown.length && q.trim() ? 0 : -1;
+      if (focused && open) {
+        if (!shown.length && q.trim()) list.appendChild(el('li', 'acct-none', '目前不存在此帳號'));
+        else if (!shown.length && !knownAccounts().length) list.appendChild(el('li', 'acct-none', '還沒有任何帳號登入過，請先傳下面的邀請連結給對方。'));
+      }
+      shown.forEach(function (a, i) {
+        var li = el('li', null); li.setAttribute('role', 'option'); li.setAttribute('aria-selected', i === active ? 'true' : 'false');
+        li.appendChild(el('strong', null, a.email));
+        if (a.name) li.appendChild(el('span', 'acct-sub', a.name));
+        li.addEventListener('mousedown', function (ev) { ev.preventDefault(); add(a.email); inp.focus(); });
+        list.appendChild(li);
+      });
+      list.hidden = !list.childNodes.length;
+      inp.setAttribute('aria-expanded', list.hidden ? 'false' : 'true');
+    }
+    function commit() {
+      var q = inp.value.trim().toLowerCase();
+      if (!q) return true;
+      var hit = knownAccounts().filter(function (a) { return a.email === q; })[0];
+      if (hit) { add(hit.email); return true; }
+      if (d.viewers.indexOf(q) !== -1) { inp.value = ''; paintList(); return true; }
+      err.textContent = '目前不存在此帳號'; err.hidden = false;
+      return false;
+    }
+    inp.addEventListener('focus', function () { focused = true; open = true; paintList(); });
+    inp.addEventListener('blur', function () { focused = false; setTimeout(paintList, 0); });
+    inp.addEventListener('input', function () { err.hidden = true; open = inp.value.trim() !== ''; active = inp.value.trim() ? 0 : -1; paintList(); });
+    inp.addEventListener('keydown', function (e) {
+      if (e.isComposing || e.keyCode === 229) return;
+      if (e.key === 'ArrowDown' && !open) { e.preventDefault(); open = true; paintList(); }
+      else if (e.key === 'ArrowDown' && shown.length) { e.preventDefault(); active = (active + 1) % shown.length; paintList(); }
+      else if (e.key === 'ArrowUp' && shown.length) { e.preventDefault(); active = (active - 1 + shown.length) % shown.length; paintList(); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (active >= 0 && shown[active] && inp.value.trim()) add(shown[active].email); else commit(); }
+      else if ((e.key === ',' || e.key === ';' || e.key === ' ') && inp.value.trim()) { e.preventDefault(); if (active >= 0 && shown[active] && !inp.value.includes('@')) add(shown[active].email); else commit(); }
+      else if (e.key === 'Escape' && !list.hidden) { e.stopPropagation(); open = false; paintList(); }
+      else if (e.key === 'Backspace' && !inp.value && d.viewers.length) { d.viewers.pop(); paintChips(); paintList(); }
+    });
+    box.addEventListener('click', function (e) { if (e.target === box || e.target === chipsEl) inp.focus(); });
+    inp.addEventListener('click', function () { if (!open) { open = true; paintList(); } });
+    box.appendChild(chipsEl); box.appendChild(inp);
+    var field = el('div', 'acct-field'); field.appendChild(box); field.appendChild(list);
+    wrap.appendChild(field); wrap.appendChild(err); wrap.appendChild(join);
+    paintChips();
+    return { el: wrap, input: inp, commit: commit, refresh: function () { paintChips(); paintList(); }, typing: function () { return focused; } };
+  }
+  var curPicker = null;
+  function renderShareModal() {
+    var box = $('shareModal');
+    var t = SH.modal;
+    if (!t) { box.textContent = ''; box.hidden = true; return; }
+    var ex = shareFor(t.kind, t.spaceId, t.linkId);
+    var d = SH.draft;
+    var key = ex ? ex.id : 'new';
+    if (d.init !== key) { d.init = key; d.mode = ex ? ex.mode : 'public'; d.viewers = ex ? (ex.viewers || []).slice() : []; }
+    box.textContent = ''; box.hidden = false;
+    box.onclick = function (ev) { if (ev.target === box) closeShareModal(); };
+    var card = el('div', 'modal-card');
+    card.setAttribute('role', 'document');
+    card.appendChild(el('h2', 'modal-title', '分享「' + t.name + '」'));
+    card.appendChild(el('p', 'modal-note', t.kind === 'space'
+      ? '分享整個分區。裡面標成「隱藏」的連結不會被分享。你修改分區或連結後，分享內容會自動同步（需要開著這個網頁）。'
+      : '只分享這一個連結。如果它被標成「隱藏」，對方會看到空的內容。你修改後會自動同步（需要開著這個網頁）。'));
+    var modes = [['public', '任何有連結的人（不用登入）'], ['people', '只有指定的 Google 帳號（對方要用該帳號登入）']];
+    var picker = buildAccountPicker(d); curPicker = picker;
+    var fieldset = el('div', 'share-modes');
+    modes.forEach(function (m) {
+      var lab = el('label', 'share-mode');
+      var r = el('input'); r.type = 'radio'; r.name = 'shareMode'; r.value = m[0]; r.checked = d.mode === m[0];
+      r.addEventListener('change', function () { d.mode = m[0]; picker.el.hidden = d.mode !== 'people'; });
+      lab.appendChild(r); lab.appendChild(el('span', null, m[1]));
+      fieldset.appendChild(lab);
+    });
+    card.appendChild(fieldset);
+    picker.el.hidden = d.mode !== 'people';
+    card.appendChild(picker.el);
+    var err = el('p', 'modal-err', d.err || ''); err.hidden = !d.err; card.appendChild(err);
+
+    if (ex) {
+      var row = el('div', 'share-linkrow');
+      var inp = el('input'); inp.type = 'text'; inp.readOnly = true; inp.value = shareUrl(ex.id); inp.setAttribute('aria-label', '分享連結');
+      inp.addEventListener('focus', function () { inp.select(); });
+      var cp = el('button', 'btn alt small', '複製連結'); cp.type = 'button';
+      cp.addEventListener('click', function () { copyText(shareUrl(ex.id), cp); });
+      row.appendChild(inp); row.appendChild(cp); card.appendChild(row);
+    }
+
+    var btns = el('div', 'row-btns modal-btns');
+    var save = el('button', 'btn', ex ? '儲存設定' : '建立分享'); save.type = 'button'; save.disabled = !!d.busy;
+    save.addEventListener('click', function () { saveShare(t, ex); });
+    btns.appendChild(save);
+    var close = el('button', 'btn alt', '關閉'); close.type = 'button';
+    close.addEventListener('click', closeShareModal);
+    btns.appendChild(close);
+    if (ex) {
+      var stop = el('button', 'act del' + (d.armed ? ' armed' : ''), d.armed ? '確定停止分享？' : '停止分享'); stop.type = 'button';
+      stop.addEventListener('click', function () {
+        if (!d.armed) { d.armed = true; renderShareModal(); clearTimeout(shareArmTimer); shareArmTimer = setTimeout(function () { d.armed = false; renderShareModal(); }, 3000); return; }
+        clearTimeout(shareArmTimer); d.armed = false; d.busy = true; renderShareModal();
+        removeShare(ex).then(function () { toast('已停止分享'); closeShareModal(); }, function () { d.busy = false; d.err = '停止分享失敗，請稍後再試'; renderShareModal(); });
+      });
+      btns.appendChild(stop);
+    }
+    card.appendChild(btns);
+    box.appendChild(card);
+    if (!ex || d.focusDone !== key) { d.focusDone = key; setTimeout(function () { try { (d.mode === 'people' && !ex ? picker.input : save).focus(); } catch (e) {} }, 0); }
+  }
+  async function saveShare(t, ex) {
+    var d = SH.draft, fs = SH.fs;
+    if (!fs || d.busy) return;
+    var viewers = [];
+    if (d.mode === 'people') {
+      if (curPicker && !curPicker.commit()) return; /* text typed but not an existing account: the picker shows why */
+      if (!d.viewers.length) { d.err = '請至少加入一個帳號'; renderShareModal(); return; }
+      if (d.viewers.length > 50) { d.err = '最多 50 個帳號'; renderShareModal(); return; }
+      viewers = d.viewers.slice();
+    }
+    d.err = ''; d.busy = true; renderShareModal();
+    try {
+      if (ex) await updateDoc(fsDoc(fs, 'shares/' + ex.id), { mode: d.mode, viewers: viewers, updatedAt: Date.now() });
+      else {
+        var data = { ownerUid: SH.uid, kind: t.kind, spaceId: t.spaceId, mode: d.mode, viewers: viewers, name: t.name, imageData: '', itemCount: 0, createdAt: Date.now(), updatedAt: Date.now() };
+        if (t.kind === 'link') data.linkId = t.linkId;
+        await addDoc(fsCollection(fs, 'shares'), data);
+      }
+      toast(ex ? '已儲存分享設定' : '已建立分享');
+    } catch (e) {
+      d.err = '儲存失敗。請確認已把新版 firestore.rules 貼到 Firebase 並發布。';
+    }
+    d.busy = false; renderShareModal();
+  }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && SH.modal) closeShareModal(); });
+
+  function renderShareSection() {
+    var sec = $('shareSection');
+    sec.textContent = '';
+    if (!SH.fs || SH.searching || (!SH.list.length && !SH.error)) { sec.hidden = true; return; }
+    sec.hidden = false;
+    sec.appendChild(el('h2', 'shares-title', '分享網址'));
+    if (SH.error) sec.appendChild(el('p', 'shares-note', '分享功能還沒啟用：請把新版 firestore.rules 貼到 Firebase 的「規則」並發布。'));
+    SH.list.forEach(function (s) {
+      var row = el('article', 'share-row');
+      row.appendChild(el('span', 'share-badge', s.kind === 'space' ? '分區' : '連結'));
+      var info = el('div', 'share-info');
+      info.appendChild(el('strong', 'share-name', s.name || '（未命名）'));
+      info.appendChild(el('span', 'share-sub', (s.mode === 'public' ? '公開連結' : '指定 ' + (s.viewers || []).length + ' 個帳號') + '・' + (s.itemCount || 0) + ' 個連結'));
+      row.appendChild(info);
+      var acts = el('div', 'acts');
+      var cp = el('button', 'act', '複製連結'); cp.type = 'button';
+      cp.addEventListener('click', function () { copyText(shareUrl(s.id), cp); });
+      var set = el('button', 'act', '設定'); set.type = 'button';
+      set.addEventListener('click', function () { openShareModal({ kind: s.kind, spaceId: s.spaceId, linkId: s.linkId, name: s.name || '' }); });
+      acts.appendChild(cp); acts.appendChild(set); row.appendChild(acts);
+      sec.appendChild(row);
+    });
+  }
+
+  var shareApi = {
+    renderHome: function (searching) { SH.searching = !!searching; renderShareSection(); },
+    spaceBtn: function (s) {
+      if (!SH.fs) return null;
+      var ex = shareFor('space', s.id);
+      var b = el('button', 'act' + (ex ? ' on' : ''), ex ? '分享中' : '分享'); b.type = 'button';
+      b.addEventListener('click', function () { openShareModal({ kind: 'space', spaceId: s.id, name: s.name }); });
+      return b;
+    },
+    linkBtn: function (l) {
+      if (!SH.fs) return null;
+      var ex = shareFor('link', state.spaceId, l.id);
+      if (!ex && l.hideFromHome) return null;
+      var b = el('button', 'act' + (ex ? ' on' : ''), ex ? '分享中' : '分享'); b.type = 'button';
+      b.addEventListener('click', function () { openShareModal({ kind: 'link', spaceId: state.spaceId, linkId: l.id, name: l.title || host(l.url || '') }); });
+      return b;
+    }
+  };
+
+  /* ----- viewer page (#share=<id>): read only ----- */
+  function dataTile(data, label, seed) {
+    var t = el('div', 'tile', ((label || '').charAt(0) || '?').toUpperCase());
+    t.style.setProperty('--h', String(hue(seed || label || ''))); t.setAttribute('aria-hidden', 'true');
+    if (typeof data === 'string' && /^data:image\/(png|jpeg|webp|gif);base64,/.test(data)) {
+      var im = el('img'); im.alt = ''; im.decoding = 'async';
+      im.addEventListener('error', function () { t.classList.remove('has-img'); t.textContent = ((label || '').charAt(0) || '?').toUpperCase(); });
+      im.src = data; t.textContent = ''; t.classList.add('has-img'); t.appendChild(im);
+    }
+    return t;
+  }
+  function startJoin(auth, fs, signIn) {
+    document.body.classList.add('viewing');
+    hideGate();
+    $('shareView').hidden = false;
+    $('pageTitle').textContent = '加入分享'; $('summary').textContent = '';
+    function say(text, btn) { $('shareMsgText').textContent = text; $('shareMsg').hidden = false; $('shareSignIn').hidden = !btn; }
+    $('shareSignIn').addEventListener('click', function () { signIn(true); });
+    $('signOutBtn').addEventListener('click', function () { signOut(auth); });
+    window.addEventListener('hashchange', function () { location.reload(); });
+    onAuthStateChanged(auth, function (user) {
+      if (!user) { $('who').hidden = true; $('signOutBtn').hidden = true; say('請用你想被加入分享的 Google 帳號登入。登入後，分享的人就能在名單裡找到你。', true); return; }
+      $('who').textContent = user.email || ''; $('who').hidden = false; $('signOutBtn').hidden = false;
+      say('正在登記你的帳號…', false);
+      registerAccount(fs, user).then(function (ok) {
+        say(ok ? '已登記帳號 ' + user.email + '。請告訴分享的人，請他把你加進分享名單。' : '登記失敗，請稍後再試，或請分享的人確認 Firestore 規則已更新。', false);
+      });
+    }, function () { say('目前無法連線，請稍後再試。', false); });
+  }
+  function startViewer(auth, fs, id, signIn) {
+    document.body.classList.add('viewing');
+    hideGate();
+    $('shareView').hidden = false;
+    $('pageTitle').textContent = '分享的收藏';
+    $('summary').textContent = '唯讀';
+    var V = { head: null, items: [], loaded: false, q: '', dead: false };
+    var subHead = null, subItems = null;
+
+    function message(text, withBtn, btnText) {
+      if (V.dead) return;
+      $('shareMsgText').textContent = text; $('shareMsg').hidden = false;
+      $('shareSignIn').hidden = !withBtn; if (btnText) $('shareSignIn').textContent = btnText;
+      $('shareHead').hidden = true; $('shareSearch').hidden = true; $('shareItems').textContent = '';
+    }
+    function paintHead() {
+      var h = V.head; if (!h || V.dead) return;
+      $('shareMsg').hidden = true; $('shareHead').hidden = false;
+      var slot = $('shareTileSlot'); slot.textContent = ''; slot.appendChild(dataTile(h.imageData, h.name || '?', h.name));
+      $('shareTitle').textContent = h.name || '分享';
+      $('shareMeta').textContent = (h.mode === 'public' ? '公開連結' : '只有指定帳號可以看') + '・' + (h.itemCount || 0) + ' 個連結';
+      document.title = (h.name || '分享') + '・網址收藏庫';
+    }
+    function paintItems() {
+      if (!V.head || V.dead) return;
+      var box = $('shareItems'); box.textContent = '';
+      $('shareSearch').hidden = V.items.length < 2;
+      var q = V.q.trim().toLowerCase();
+      var rows = V.items.filter(function (it) {
+        if (!q) return true;
+        return [it.title, it.url, it.note, (it.categories || []).join(' ')].some(function (x) { return (x || '').toLowerCase().indexOf(q) !== -1; });
+      }).sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+      if (!rows.length) { box.appendChild(el('div', 'empty', !V.loaded ? '載入中…' : V.items.length ? '找不到符合的連結。' : '這個分享目前沒有可顯示的連結。')); return; }
+      var grp = el('section', 'group');
+      rows.forEach(function (it) {
+        var row = el('article', 'item');
+        var hn = host(it.url || '');
+        row.appendChild(dataTile(it.imageData, hn, hn));
+        var info = el('div', 'info');
+        var href = safeHref(it.url), title = it.title || hn;
+        if (href) { var a = el('a', 'title', title); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; info.appendChild(a); }
+        else info.appendChild(el('span', 'title', title));
+        info.appendChild(el('p', 'url', hn));
+        if (it.note) info.appendChild(el('p', 'note', it.note));
+        if ((it.categories || []).length) {
+          var chips = el('div', 'chips');
+          it.categories.forEach(function (c) { chips.appendChild(el('span', 'chip static', c)); });
+          info.appendChild(chips);
+        }
+        row.appendChild(info);
+        var acts = el('div', 'acts');
+        var cp = el('button', 'act', '複製'); cp.type = 'button';
+        cp.addEventListener('click', function () { copyText(it.url, cp); });
+        acts.appendChild(cp); row.appendChild(acts);
+        grp.appendChild(row);
+      });
+      box.appendChild(grp);
+    }
+    function denied(user) {
+      if (V.dead) return;
+      V.head = null; V.items = [];
+      document.title = '網址收藏庫';
+      if (user) message('這個帳號（' + (user.email || '') + '）沒有權限查看，或這個分享已經停止。', true, '改用其他帳號登入');
+      else message('找不到這個分享，或它只開放給指定的人。如果對方請你用 Google 帳號登入，請按下面的按鈕。', true, '用 Google 帳號登入');
+    }
+    function subscribe(user) {
+      if (V.dead) return;
+      unsub(subHead); unsub(subItems);
+      V.head = null; V.items = []; V.loaded = false;
+      message('載入中…', false);
+      subHead = fsOnSnapshot(fsDoc(fs, 'shares/' + id), function (snap) {
+        if (!snap.exists()) { denied(user); return; }
+        V.head = snap.data(); paintHead(); paintItems();
+      }, function () { denied(user); });
+      subItems = fsOnSnapshot(fsQuery(fsCollection(fs, 'shares/' + id + '/items'), fsLimit(1000)), function (snap) {
+        V.items = snap.docs.map(function (d) { return d.data(); }); V.loaded = true; paintItems();
+      }, function () { /* the header listener shows the message */ });
+    }
+    $('shareQ').addEventListener('input', function (e) { V.q = e.target.value; paintItems(); });
+    $('shareSignIn').addEventListener('click', function () { signIn(true); });
+    $('signOutBtn').addEventListener('click', function () { signOut(auth); });
+    window.addEventListener('hashchange', function () { location.reload(); });
+    onAuthStateChanged(auth, function (user) {
+      if (user) { $('who').textContent = user.email || user.displayName || ''; $('who').hidden = false; $('signOutBtn').hidden = false; registerAccount(fs, user); }
+      else { $('who').hidden = true; $('signOutBtn').hidden = true; }
+      subscribe(user);
+    }, function () { message('目前無法連線，請稍後再試。', false); });
+    return function stopViewer() { V.dead = true; unsub(subHead); unsub(subItems); };
+  }
+
   /* ---------- boot (GitHub Pages: Firebase sign-in + Firestore) ---------- */
   function onErr() { state.dbOk = false; render(); }
 
@@ -1207,6 +1761,7 @@ const firebaseConfig = {
 
   /* back to a clean slate when the account changes or signs out, so nothing from one session lingers */
   function teardown() {
+    stopShares();
     unsub(subs.spaces); subs.spaces = null;
     clearCountSubs();
     subs.space.forEach(unsub); subs.space = [];
@@ -1232,15 +1787,20 @@ const firebaseConfig = {
     var auth = getAuth(app);
     var fs = getFirestore(app);
 
-    $('signInBtn').addEventListener('click', function () {
+    function signIn(pick) {
       var provider = new GoogleAuthProvider();
+      if (pick) provider.setCustomParameters({ prompt: 'select_account' });
       signInWithPopup(auth, provider).catch(function (e) {
         var code = e && e.code;
         if (code === 'auth/popup-blocked') { signInWithRedirect(auth, provider); return; }
         if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return;
         toast(code === 'auth/unauthorized-domain' ? '這個網域還沒加入 Firebase 的授權網域' : '登入失敗，請稍後再試');
       });
-    });
+    }
+    var viewMatch = /^#share=([A-Za-z0-9_-]{16,64})$/.exec(location.hash);
+    if (viewMatch) { startViewer(auth, fs, viewMatch[1], signIn); return; }
+    if (location.hash === '#join') { startJoin(auth, fs, signIn); return; }
+    $('signInBtn').addEventListener('click', function () { signIn(false); });
     $('signOutBtn').addEventListener('click', function () { signOut(auth); });
 
     onAuthStateChanged(auth, function (user) {
@@ -1259,6 +1819,7 @@ const firebaseConfig = {
       assetsApi = makeImageStore();
       linkPicker = makeImagePicker(null); $('fImageMount').appendChild(linkPicker.el); $('fImageField').hidden = false;
       spacePicker = makeImagePicker(null); $('sImageMount').appendChild(spacePicker.el); $('sImageField').hidden = false;
+      shareHook = shareApi; startShares(fs, user.uid, user.email);
       listenSpaces();
       render();
     }, onErr);
