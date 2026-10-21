@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 擁有者：請把 YOUR_EMAIL@gmail.com 換成你自己的 Gmail，只有這個帳號可以管理資料與分享。
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email == 'YOUR_EMAIL@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    // 分享內容：公開，或是名單裡的 Google 帳號（要通過驗證）。
+    function canView(share) {
+      return share.mode == 'public'
+        || (request.auth != null
+            && request.auth.token.email_verified == true
+            && request.auth.token.email.lower() in share.viewers);
+    }
+
+    function validShare(d) {
+      return d.mode in ['public', 'people']
+        && d.viewers is list
+        && d.viewers.size() <= 50;
+    }
+
+    // 你自己的資料：只有你本人（你的帳號與你的 Gmail）可以讀寫，其他人一律拒絕。
+    match /users/{uid}/{document=**} {
+      allow read, write: if isOwner() && request.auth.uid == uid;
+    }
+
+    // 登入過這個網站的帳號名錄：每個人只能寫自己的那一筆（電子郵件必須是自己登入的帳號），只有你能讀取與清除。
+    match /accounts/{uid} {
+      allow read, delete: if isOwner();
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.email_verified == true
+        && request.resource.data.keys().hasOnly(['email', 'name', 'lastSeen'])
+        && request.resource.data.email == request.auth.token.email.lower()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.lastSeen is number;
+    }
+
+    // 分享：每一份都是獨立的副本，不會開放你的原始資料。
+    // 只允許用分享的網址（亂碼 ID）單筆讀取，不能列出全部分享。
+    match /shares/{shareId} {
+      allow get: if canView(resource.data)
+        || (isOwner() && resource.data.ownerUid == request.auth.uid);
+      allow list: if isOwner() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isOwner()
+        && request.resource.data.ownerUid == request.auth.uid
+        && validShare(request.resource.data);
+      allow update: if isOwner()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && validShare(request.resource.data);
+      allow delete: if isOwner() && resource.data.ownerUid == request.auth.uid;
+
+      match /items/{itemId} {
+        allow read: if canView(get(/databases/$(database)/documents/shares/$(shareId)).data)
+          || (isOwner() && get(/databases/$(database)/documents/shares/$(shareId)).data.ownerUid == request.auth.uid);
+        allow write: if isOwner()
+          && get(/databases/$(database)/documents/shares/$(shareId)).data.ownerUid == request.auth.uid;
+      }
+    }
+  }
+}
