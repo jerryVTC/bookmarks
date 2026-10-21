@@ -220,6 +220,12 @@
   .share-info { display: flex; flex-direction: column; min-width: 0; }
   .share-name { overflow-wrap: anywhere; font-weight: 500; }
   .share-sub { color: var(--muted); font-size: 0.8125rem; }
+  .share-sync { font-size: 0.8125rem; font-weight: 500; }
+  .share-sync.sync-success { color: var(--accent); }
+  .share-sync.sync-error, .share-sync-error { color: var(--danger); }
+  .share-sync.sync-pending, .share-sync.sync-syncing, .share-sync.sync-retrying { color: var(--muted); }
+  .share-sync-time { font-size: 0.75rem; color: var(--muted); }
+  .share-sync-error { font-size: 0.75rem; overflow-wrap: anywhere; }
   .modal { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
   .modal-card { background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; padding: 20px; width: min(520px, 100%); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
   .modal-title { margin: 0; font-size: 1.125rem; font-weight: 500; overflow-wrap: anywhere; }
@@ -1210,7 +1216,31 @@ const firebaseConfig = {
      A share is a separate copy under shares/<id> (+ shares/<id>/items/*). The owner's own data under users/<uid>/
      is never opened to anyone else. While the owner has this page open, the copy is kept in sync automatically.
      Links marked 隱藏 are never copied. */
-  var SH = { fs: null, uid: null, me: '', accounts: [], sample: null, unsubAcc: null, list: [], loaded: false, error: false, unsubList: null, watch: {}, timers: {}, chain: {}, mirror: {}, modal: null, draft: {}, searching: false, warned: false };
+  var SH = { fs: null, uid: null, me: '', accounts: [], sample: null, unsubAcc: null, list: [], loaded: false, error: false, unsubList: null, watch: {}, timers: {}, retryTimers: {}, chain: {}, mirror: {}, status: {}, session: 0, modal: null, draft: {}, searching: false };
+  var SYNC_RETRY_DELAYS = [2000, 5000, 10000]; /* at most three automatic retries per failed sync */
+  function syncState(s) {
+    var st = SH.status[s.id];
+    var savedAt = Number(s.lastSyncedAt) || 0;
+    if (!st) {
+      st = { phase: 'pending', lastSuccess: savedAt, attempt: 0, error: '' };
+      SH.status[s.id] = st;
+    } else if (savedAt > st.lastSuccess) {
+      st.lastSuccess = savedAt;
+    }
+    return st;
+  }
+  function syncErrorMessage(e) {
+    var code = String(e && e.code || '').replace(/^firestore\//, '');
+    if (code === 'permission-denied' || code === 'unauthenticated') return 'Firebase 權限不足，請檢查登入狀態與 Firestore 規則';
+    if (code === 'unavailable' || code === 'deadline-exceeded') return '網路或 Firebase 暫時無法連線';
+    if (code === 'resource-exhausted') return 'Firebase 額度或使用量限制';
+    if (code === 'failed-precondition') return 'Firestore 執行條件不符，請檢查資料庫設定';
+    return '同步遇到錯誤，請檢查網路與 Firebase 狀態';
+  }
+  function syncCanRetry(e) {
+    var code = String(e && e.code || '').replace(/^firestore\//, '');
+    return !['permission-denied', 'unauthenticated', 'invalid-argument', 'failed-precondition', 'resource-exhausted'].includes(code);
+  }
 
   function shareUrl(id) { return location.origin + location.pathname + '#share=' + id; }
   function shareFor(kind, spaceId, linkId) {
@@ -1269,7 +1299,7 @@ const firebaseConfig = {
     var head = { name: '', imageData: '' }, items = {};
     if (s.kind === 'space') {
       var sd = await getDoc(fsDoc(fs, base));
-      if (!sd.exists()) { await removeShare(s); return; }
+      if (!sd.exists()) { await removeShare(s); return null; }
       head.name = sd.data().name || '';
       head.imageData = await imageDataOf(sd.data().image);
       var ls = await getDocs(fsQuery(fsCollection(fs, base + '/links'), fsLimit(1000)));
@@ -1280,7 +1310,7 @@ const firebaseConfig = {
       }
     } else {
       var ld = await getDoc(fsDoc(fs, base + '/links/' + s.linkId));
-      if (!ld.exists()) { await removeShare(s); return; }
+      if (!ld.exists()) { await removeShare(s); return null; }
       var l1 = ld.data();
       head.name = l1.title || host(l1.url || '');
       if (!l1.hideFromHome) items[ld.id] = await buildItem(l1);
@@ -1304,14 +1334,58 @@ const firebaseConfig = {
     }
     var stale = Object.keys(mir).filter(function (x) { return !items[x]; });
     for (var m = 0; m < stale.length; m++) { await deleteDoc(fsDoc(fs, 'shares/' + id + '/items/' + stale[m])); delete mir[stale[m]]; }
+    /* Only publish success after every item write/delete has completed. */
+    var completedAt = Date.now();
+    await updateDoc(fsDoc(fs, 'shares/' + id), { lastSyncedAt: completedAt, updatedAt: completedAt });
+    return completedAt;
   }
-  function scheduleSync(id) {
+  function runSync(id) {
+    clearTimeout(SH.retryTimers[id]); delete SH.retryTimers[id];
+    var session = SH.session;
+    SH.chain[id] = (SH.chain[id] || Promise.resolve()).then(async function () {
+      if (SH.session !== session || !SH.fs || !SH.status[id] || !SH.list.some(function (s) { return s.id === id; })) return;
+      var st = SH.status[id];
+      st.phase = 'syncing';
+      renderShareSection();
+      try {
+        var completedAt = await syncShare(id);
+        if (SH.session !== session || SH.status[id] !== st || completedAt == null) return;
+        st.phase = 'success'; st.attempt = 0; st.error = ''; st.lastSuccess = completedAt;
+      } catch (e) {
+        if (SH.session !== session || SH.status[id] !== st) return;
+        st.error = syncErrorMessage(e);
+        if (syncCanRetry(e) && st.attempt < SYNC_RETRY_DELAYS.length) {
+          var delay = SYNC_RETRY_DELAYS[st.attempt++];
+          st.phase = 'retrying';
+          SH.retryTimers[id] = setTimeout(function () {
+            delete SH.retryTimers[id];
+            runSync(id);
+          }, delay);
+        } else {
+          st.phase = 'error';
+          toast('分享同步失敗：' + st.error);
+        }
+      }
+      renderShareSection();
+    }).catch(function (e) {
+      /* Keep the queue usable even if an unexpected UI error occurs. */
+      var st = SH.status[id];
+      if (SH.session !== session || !st) return;
+      st.phase = 'error'; st.error = syncErrorMessage(e);
+      toast('分享同步失敗：' + st.error);
+      renderShareSection();
+    });
+  }
+  function scheduleSync(id, immediate) {
+    var share = SH.list.filter(function (s) { return s.id === id; })[0];
+    if (!share || !SH.fs) return;
+    var st = syncState(share);
     clearTimeout(SH.timers[id]);
-    SH.timers[id] = setTimeout(function () {
-      SH.chain[id] = (SH.chain[id] || Promise.resolve()).then(function () { return syncShare(id); }).catch(function () {
-        if (!SH.warned) { SH.warned = true; toast('分享內容同步失敗，請確認 Firestore 規則已更新'); }
-      });
-    }, 500);
+    clearTimeout(SH.retryTimers[id]); delete SH.retryTimers[id];
+    st.attempt = 0; st.error = '';
+    if (st.phase !== 'syncing') st.phase = 'pending';
+    renderShareSection();
+    SH.timers[id] = setTimeout(function () { runSync(id); }, immediate ? 0 : 500);
   }
   function watchShare(s) {
     var fs = SH.fs, base = 'users/' + SH.uid + '/spaces/' + s.spaceId, us = [];
@@ -1327,10 +1401,13 @@ const firebaseConfig = {
   }
   function unwatchShare(id) {
     (SH.watch[id] || []).forEach(unsub); delete SH.watch[id];
-    clearTimeout(SH.timers[id]); delete SH.timers[id]; delete SH.chain[id]; delete SH.mirror[id];
+    clearTimeout(SH.timers[id]); delete SH.timers[id];
+    clearTimeout(SH.retryTimers[id]); delete SH.retryTimers[id];
+    delete SH.chain[id]; delete SH.mirror[id]; delete SH.status[id];
   }
 
   function startShares(fs, uid, email) {
+    SH.session++;
     SH.fs = fs; SH.uid = uid; SH.me = String(email || '').toLowerCase();
     SH.unsubAcc = fsOnSnapshot(fsQuery(fsCollection(fs, 'accounts'), fsLimit(500)), function (snap) {
       SH.accounts = snap.docs.map(function (d) { var v = d.data() || {}; return { uid: d.id, email: String(v.email || '').toLowerCase(), name: String(v.name || '') }; })
@@ -1343,7 +1420,7 @@ const firebaseConfig = {
       SH.list = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
         .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
       var have = {};
-      SH.list.forEach(function (s) { have[s.id] = true; if (!SH.watch[s.id]) watchShare(s); });
+      SH.list.forEach(function (s) { have[s.id] = true; syncState(s); if (!SH.watch[s.id]) watchShare(s); });
       Object.keys(SH.watch).forEach(function (id) { if (!have[id]) unwatchShare(id); });
       renderShareSection(); if (!(curPicker && curPicker.typing())) renderShareModal(); render();
     }, function () { SH.error = true; renderShareSection(); });
@@ -1351,7 +1428,9 @@ const firebaseConfig = {
   function stopShares() {
     unsub(SH.unsubList); unsub(SH.unsubAcc); SH.unsubAcc = null; SH.accounts = []; curPicker = null;
     Object.keys(SH.watch).forEach(unwatchShare);
-    SH.fs = null; SH.uid = null; SH.list = []; SH.loaded = false; SH.error = false; SH.unsubList = null; SH.modal = null; SH.draft = {}; SH.warned = false;
+    SH.session++;
+    SH.fs = null; SH.uid = null; SH.list = []; SH.loaded = false; SH.error = false; SH.unsubList = null; SH.modal = null; SH.draft = {};
+    SH.status = {}; SH.retryTimers = {}; SH.chain = {}; SH.mirror = {};
     $('shareModal').textContent = ''; $('shareModal').hidden = true; $('shareSection').hidden = true;
     shareHook = null;
   }
@@ -1546,13 +1625,24 @@ const firebaseConfig = {
       var info = el('div', 'share-info');
       info.appendChild(el('strong', 'share-name', s.name || '（未命名）'));
       info.appendChild(el('span', 'share-sub', (s.mode === 'public' ? '公開連結' : '指定 ' + (s.viewers || []).length + ' 個帳號') + '・' + (s.itemCount || 0) + ' 個連結'));
+      var st = syncState(s);
+      var syncLabel = { pending: '等待同步', syncing: '同步中…', retrying: '暫時失敗，準備自動重試（' + st.attempt + '/' + SYNC_RETRY_DELAYS.length + '）', success: '同步完成', error: '同步失敗' }[st.phase] || '等待檢查';
+      var syncLine = el('span', 'share-sync sync-' + st.phase, syncLabel);
+      syncLine.setAttribute('role', 'status');
+      info.appendChild(syncLine);
+      info.appendChild(el('span', 'share-sync-time', st.lastSuccess ? '最後成功：' + new Date(st.lastSuccess).toLocaleString('zh-TW') : '尚無成功同步紀錄'));
+      if (st.error) info.appendChild(el('span', 'share-sync-error', st.error));
       row.appendChild(info);
       var acts = el('div', 'acts');
       var cp = el('button', 'act', '複製連結'); cp.type = 'button';
       cp.addEventListener('click', function () { copyText(shareUrl(s.id), cp); });
       var set = el('button', 'act', '設定'); set.type = 'button';
       set.addEventListener('click', function () { openShareModal({ kind: s.kind, spaceId: s.spaceId, linkId: s.linkId, name: s.name || '' }); });
-      acts.appendChild(cp); acts.appendChild(set); row.appendChild(acts);
+      var retry = el('button', 'act', '重新同步'); retry.type = 'button';
+      retry.disabled = st.phase === 'syncing';
+      retry.setAttribute('aria-label', '重新同步「' + (s.name || '分享') + '」');
+      retry.addEventListener('click', function () { scheduleSync(s.id, true); });
+      acts.appendChild(cp); acts.appendChild(set); acts.appendChild(retry); row.appendChild(acts);
       sec.appendChild(row);
     });
   }
